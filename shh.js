@@ -1,9 +1,12 @@
+var LRU = require("lru-cache");
+
 // GLOBALS
-var KNOWN_FAILURES = {};
+var KNOWN_FAILURES = LRU(1024);
+var MEMOIZED_PRUNE_LIST = LRU(1024);
 var COMPLETE_DICT;
 
 // STAT KEEPING
-var counter = 0;
+var finishedTrees = 0;
 var actualIterationCount = 0;
 var startTime;
 
@@ -25,7 +28,7 @@ function run(wordObj) {
 
 	// Experiment, sort by fewest vowels first
 	// This order will always be maintained, so just do it once
-	validWords.sort(compareVowels)
+	validWords.sort(longestSingleVowel);
 
 	startTime = new Date().getTime();
 	var solutions = solveShh([], START, validWords);
@@ -56,7 +59,7 @@ function solveShh(verifiedWords, remainingLetters, validWords) {
 		var newLetters = remainingLetters.replace(re, '');
 
 		// Not allowed to use 2 letter words
-		if(KNOWN_FAILURES[newLetters] || newLetters.length < 3 || getVowels(newLetters) === 0) {
+		if(KNOWN_FAILURES.get(newLetters) || newLetters.length < 3 || getVowels(newLetters) === 0) {
 			continue;
 		}
 
@@ -81,41 +84,36 @@ function solveShh(verifiedWords, remainingLetters, validWords) {
 	}
 
     // DEBUG
-	if(counter % 50000 === 0){
-		var listsLen = Object.keys(MEMOIZED_PRUNE_LIST).length;
-		var knownSets = (listsLen + counter);
+	if(finishedTrees % 50000 === 0){
 		var now = new Date().getTime();
 		var timePassed = now - startTime;
 
 		console.log('===========================');
 		console.log(timePassed / actualIterationCount, "ms per true iteration");
-		console.log(timePassed / counter, "ms per tree termination");
-		console.log(counter, " Trees terminated");
-		console.log(listsLen, " memoized lists");
+		console.log(timePassed / finishedTrees, "ms per tree termination");
+		console.log(finishedTrees, " Trees terminated");
 		console.log(actualIterationCount, "true iterations");
-		console.log(knownSets/77508760, "% saved sets");
 		console.log(actualIterationCount/77508760, "% seen sets");
 	}
-	counter++;
+	finishedTrees++;
     // END DEBUG
 
 	if(Object.keys(validSolutions).length === 0) {
 		// This implies that 'remainigLetters' is a failure case
 		// for any future passes
-		KNOWN_FAILURES[remainingLetters] = true;
+		KNOWN_FAILURES.set(remainingLetters, true);
 		return false;
 	}
-
 
 	return validSolutions;
 }
 
 // Given an array and a letter list, prune all the 
 // impossible words and return that array
-var MEMOIZED_PRUNE_LIST = {};
 function pruneList(validWords, remainingLetters) {
-	if(MEMOIZED_PRUNE_LIST[remainingLetters]) {
-		return MEMOIZED_PRUNE_LIST[remainingLetters]
+	var memo = MEMOIZED_PRUNE_LIST.get(remainingLetters);
+	if(memo) {
+		return memo;
 	}
 
 	var newList = [];
@@ -127,8 +125,18 @@ function pruneList(validWords, remainingLetters) {
 		}
 	}
 
-	MEMOIZED_PRUNE_LIST[remainingLetters] = newList;
+	MEMOIZED_PRUNE_LIST.set(remainingLetters, newList);
 	return newList;
+}
+
+function fewVowelsLongest(a, b){
+	var vDiff = compareVowels(a, b);
+	if(vDiff === 0) return compareLength(a, b);
+	return vDiff;
+}
+
+function compareLength(a, b){
+	return b.length - a.length;
 }
 
 function compareVowels(a, b) {
