@@ -2,6 +2,11 @@
 var KNOWN_FAILURES = {};
 var COMPLETE_DICT;
 
+// STAT KEEPING
+var counter = 0;
+var actualIterationCount = 0;
+var startTime;
+
 // Main entry
 loadDict(run);
 // console.log(checkWord('knife', 'knife'));
@@ -22,11 +27,12 @@ function run(wordObj) {
 	// This order will always be maintained, so just do it once
 	validWords.sort(compareVowels)
 
+	startTime = new Date().getTime();
 	var solutions = solveShh([], START, validWords);
+	
 	printClarifiedSolutions(solutions);
 }
 
-var counter = 0;
 function solveShh(verifiedWords, remainingLetters, validWords) {
 	var validSolutions = {};
 
@@ -40,6 +46,8 @@ function solveShh(verifiedWords, remainingLetters, validWords) {
 	// For every sorted letter combo, see if we can make it
 	// using the remaining letters
 	for(var i = 0; i < validWords.length; i++) {
+		actualIterationCount++;
+
 		var word = validWords[i];
 
 		// change the remaining letters
@@ -73,18 +81,23 @@ function solveShh(verifiedWords, remainingLetters, validWords) {
 	}
 
     // DEBUG
-	if(counter % 10000 === 0){
+	if(counter % 50000 === 0){
 		var listsLen = Object.keys(MEMOIZED_PRUNE_LIST).length;
-		var failuresLen = Object.keys(KNOWN_FAILURES).length;
-		var knownSets = (listsLen + failuresLen);
+		var knownSets = (listsLen + counter);
+		var now = new Date().getTime();
+		var timePassed = now - startTime;
+
+		console.log('===========================');
+		console.log(timePassed / actualIterationCount, "ms per true iteration");
+		console.log(timePassed / counter, "ms per tree termination");
 		console.log(counter, " Trees terminated");
 		console.log(listsLen, " memoized lists");
-		console.log(failuresLen, " Known failing cases");
-		console.log(knownSets, " of ", 77508760);
-		console.log(knownSets/77508760, "%");
+		console.log(actualIterationCount, "true iterations");
+		console.log(knownSets/77508760, "% saved sets");
+		console.log(actualIterationCount/77508760, "% seen sets");
 	}
 	counter++;
-        // END DEBUG
+    // END DEBUG
 
 	if(Object.keys(validSolutions).length === 0) {
 		// This implies that 'remainigLetters' is a failure case
