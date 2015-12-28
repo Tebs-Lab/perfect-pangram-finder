@@ -18,6 +18,10 @@ function run(wordObj) {
 	var validWords = Object.keys(COMPLETE_DICT);
 	console.log(validWords.length, " Total initial dictionary entries");
 
+	// Experiment, sort by fewest vowels first
+	// This order will always be maintained, so just do it once
+	validWords.sort(compareVowels)
+
 	var solutions = solveShh([], START, validWords);
 	printClarifiedSolutions(solutions);
 }
@@ -44,7 +48,7 @@ function solveShh(verifiedWords, remainingLetters, validWords) {
 		var newLetters = remainingLetters.replace(re, '');
 
 		// Not allowed to use 2 letter words
-		if(KNOWN_FAILURES[newLetters] || newLetters.length < 3) {
+		if(KNOWN_FAILURES[newLetters] || newLetters.length < 3 || getVowels(newLetters) === 0) {
 			continue;
 		}
 
@@ -68,7 +72,7 @@ function solveShh(verifiedWords, remainingLetters, validWords) {
 		}
 	}
 
-        // DEBUG
+    // DEBUG
 	if(counter % 10000 === 0){
 		var listsLen = Object.keys(MEMOIZED_PRUNE_LIST).length;
 		var failuresLen = Object.keys(KNOWN_FAILURES).length;
@@ -112,6 +116,15 @@ function pruneList(validWords, remainingLetters) {
 
 	MEMOIZED_PRUNE_LIST[remainingLetters] = newList;
 	return newList;
+}
+
+function compareVowels(a, b) {
+	return getVowels(a) - getVowels(b);
+}
+
+function getVowels(str) {
+  var m = str.match(/[aeiouy]/gi);
+  return m === null ? 0 : m.length;
 }
 
 // Test that letters has enough letters to 
