@@ -1,49 +1,29 @@
-var trie = require('resig-trie');
-
 // GLOBALS
-var knownFailures = {};
+var KNOWN_FAILURES = {};
+var COMPLETE_DICT;
 
 // Main entry
 loadDict(run);
 // console.log(checkWord('knife', 'knife'));
+// console.log(checkWord('knife', 'knifes'));
+// console.log(checkWord('knife', 'knif'));
 
 function run(wordObj) {
 	var START = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 	// create the set of winnable single word sets
-	var validWords = createWinnableSets(Object.keys(wordObj));
+	COMPLETE_DICT = createWinnableSets(Object.keys(wordObj));
 	console.log("created winnable sets");
-	console.log(Object.keys(validWords).length, " Total initial dictionary");
+
+	var validWords = Object.keys(COMPLETE_DICT);
+	console.log(validWords.length, " Total initial dictionary entries");
 
 	var solutions = solveShh([], START, validWords);
-	var clarifiedSolutions = {};
-	for(var key in solutions) {
-		var clarifiedSolution = {};
-		var sWordList = solution[key];
-		for(var i in sWordList) {
-			var curSortedWord = sWordList[i];
-			var realWords = validWords[curSortedWord];
-			clarifiedSolution[curSortedWord] = realWords;
-		}
-		clarifiedSolutions[key] = clarifiedSolution;
-	}
-	console.log(clarifiedSolutions);
+	printClarifiedSolutions(solutions);
 }
 
 var counter = 0;
 function solveShh(verifiedWords, remainingLetters, validWords) {
-	if(counter % 10000 === 0){
-		var listsLen = Object.keys(MEMOIZED_PRUNE_LIST).length;
-		var failuresLen = Object.keys(knownFailures).length;
-		var knownSets = (listsLen + failuresLen);
-		console.log(counter, " Iterations Attempted");
-		console.log(listsLen, " memoized lists");
-		console.log(failuresLen, " Known failing cases");
-		console.log(knownSets, " of ", 77508760);
-		console.log(knownSets/77508760, "%");
-	}
-	counter++;
-
 	var validSolutions = {};
 
 	if(remainingLetters.length === 0) {
@@ -55,20 +35,28 @@ function solveShh(verifiedWords, remainingLetters, validWords) {
 
 	// For every sorted letter combo, see if we can make it
 	// using the remaining letters
-	for(word in validWords) {
-		// create new words
-		var newWords = verifiedWords.slice();
-		newWords.push(word);
-		
+	for(var i = 0; i < validWords.length; i++) {
+		var word = validWords[i];
+
 		// change the remaining letters
 		var pattern = "[" + word + "]";
 		var re = new RegExp(pattern, "g");
 		var newLetters = remainingLetters.replace(re, '');
 
-		if(knownFailures[newLetters]) {
+		// Not allowed to use 2 letter words
+		if(KNOWN_FAILURES[newLetters] || newLetters.length < 3) {
 			continue;
 		}
+
+		// The letters might be valid, create the pruned list
 		var newValidWords = pruneList(validWords, newLetters);
+
+		// Don't bother recursing if we're not gonna find a word
+		if(newValidWords.length === 0) continue;
+
+		// create new chosen words
+		var newWords = verifiedWords.slice();
+		newWords.push(word);
 
 		var solution = solveShh(newWords, newLetters, newValidWords);
 		
@@ -80,12 +68,27 @@ function solveShh(verifiedWords, remainingLetters, validWords) {
 		}
 	}
 
+        // DEBUG
+	if(counter % 10000 === 0){
+		var listsLen = Object.keys(MEMOIZED_PRUNE_LIST).length;
+		var failuresLen = Object.keys(KNOWN_FAILURES).length;
+		var knownSets = (listsLen + failuresLen);
+		console.log(counter, " Trees terminated");
+		console.log(listsLen, " memoized lists");
+		console.log(failuresLen, " Known failing cases");
+		console.log(knownSets, " of ", 77508760);
+		console.log(knownSets/77508760, "%");
+	}
+	counter++;
+        // END DEBUG
+
 	if(Object.keys(validSolutions).length === 0) {
 		// This implies that 'remainigLetters' is a failure case
 		// for any future passes
-		knownFailures[remainingLetters] = true;
+		KNOWN_FAILURES[remainingLetters] = true;
 		return false;
 	}
+
 
 	return validSolutions;
 }
@@ -98,10 +101,12 @@ function pruneList(validWords, remainingLetters) {
 		return MEMOIZED_PRUNE_LIST[remainingLetters]
 	}
 
-	var newList = {};
-	for(word in validWords) {
+	var newList = [];
+	for(var i = 0; i < validWords.length; i++) {
+		var word = validWords[i];
+
 		if(checkWord(word, remainingLetters)){
-			newList[word] = validWords[word];
+			newList.push(word);
 		}
 	}
 
@@ -111,20 +116,24 @@ function pruneList(validWords, remainingLetters) {
 
 // Test that letters has enough letters to 
 function checkWord(word, letters) {
-	//console.log(word, letters);
-	var cCount = countCharacters(word);
-	//console.log(cCount);
-	for(var i in letters) {
-		var c = letters[i];
-		cCount[c] -= 1;
+	if(letters.length < word.length) {
+		return false;
 	}
 
-	for(key in cCount) {
-		// Negative numbers mean we have more than enough letters
-		if(cCount[key] > 0) {
-			return false;
-		}
+	var counter = {};
+
+	// Because our subset of letters is sure to only have uniqe letters
+	// we can just set counter to 1
+	for(var i = 0; i < letters.length; i++){
+		var c = letters[i];
+		counter[c] = 1;
 	}
+
+	// If word has a letter that letters didn't have.
+	for(i = 0; i < word.length; i++) {
+		if(counter[word[i]] !== 1) return false;
+	}
+
 	return true;
 }
 
@@ -197,4 +206,19 @@ function createWinnableSets(wordList) {
 		
 	}
 	return winners;
+}
+
+function printClarifiedSolutions(solutions){
+	var clarifiedSolutions = {};
+	for(var key in solutions) {
+		var clarifiedSolution = {};
+		var sWordList = solution[key];
+		for(var i in sWordList) {
+			var curSortedWord = sWordList[i];
+			var realWords = COMPLETE_DICT[curSortedWord];
+			clarifiedSolution[curSortedWord] = realWords;
+		}
+		clarifiedSolutions[key] = clarifiedSolution;
+	}
+	console.log(clarifiedSolutions);
 }
