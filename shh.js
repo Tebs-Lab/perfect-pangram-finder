@@ -1,150 +1,133 @@
 var trie = require('resig-trie');
 
 // GLOBALS
-var outcomes = {};
-var attemptedSets;
-var dictTrie;
-var DICT;
+var knownFailures = {};
 
 // Main entry
 loadDict(run);
+// console.log(checkWord('knife', 'knife'));
 
 function run(wordObj) {
-	var START = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-	DICT = wordObj;
-
-	// construct a trie from the dictionary
-	dictTrie = trie.create(Object.keys(wordObj));
-	console.log("created trie");
+	var START = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 	// create the set of winnable single word sets
-	attemptedSets = createWinnableSets(Object.keys(wordObj));
+	var validWords = createWinnableSets(Object.keys(wordObj));
 	console.log("created winnable sets");
+	console.log(Object.keys(validWords).length, " Total initial dictionary");
 
-	// START IT UP BRO
-	solveShh('', [], START, '');
-	printWinners();
-
+	var solutions = solveShh([], START, validWords);
+	var clarifiedSolutions = {};
+	for(var key in solutions) {
+		var clarifiedSolution = {};
+		var sWordList = solution[key];
+		for(var i in sWordList) {
+			var curSortedWord = sWordList[i];
+			var realWords = validWords[curSortedWord];
+			clarifiedSolution[curSortedWord] = realWords;
+		}
+		clarifiedSolutions[key] = clarifiedSolution;
+	}
+	console.log(clarifiedSolutions);
 }
 
-function printWinners() {
-	console.log(outcomes);
-}
+var counter = 0;
+function solveShh(verifiedWords, remainingLetters, validWords) {
+	if(counter % 10000 === 0){
+		var listsLen = Object.keys(MEMOIZED_PRUNE_LIST).length;
+		var failuresLen = Object.keys(knownFailures).length;
+		var knownSets = (listsLen + failuresLen);
+		console.log(counter, " Iterations Attempted");
+		console.log(listsLen, " memoized lists");
+		console.log(failuresLen, " Known failing cases");
+		console.log(knownSets, " of ", 77508760);
+		console.log(knownSets/77508760, "%");
+	}
+	counter++;
 
-function solveShh(activeWord, verifiedWords, remainingLetters, letterOrder){
-	// DEBUG
-	var outcomesCount = Object.keys(outcomes).length;
-	if(outcomesCount % 10000 === 0){
-		printWinners();
+	var validSolutions = {};
+
+	if(remainingLetters.length === 0) {
+		var returnObj = {};
+		returnObj[verifiedWords.join('+')] = verifiedWords;
+		console.log(verifiedWords);
+		return returnObj;
 	}
 
-	// If we've used all the letters, we need to finish
-	if(remainingLetters.length === 0){
-		if(activeWord === '') {
-			outcomes[letterOrder] = {
-				win: true, 
-				words: verifiedWords
-			};
-		}
-		else {
-			outcomes[letterOrder] = {
-				win: false, 
-				words: verifiedWords, 
-				inPlay: activeWord
-			};
-		}
-
-		return outcomes[letterOrder];
-	}
-
-	// Create the remaining sorted letters
-	var remainingSorted = remainingLetters.sort().join('');
-
-	// We build up this list of impossible situations
-	// as we run through the solver
-	if(attemptedSets[remainingSorted] === false) {
-		outcomes[letterOrder] = {
-				win: false, 
-				words: verifiedWords, 
-				inPlay: activeWord,
-				fastFail: true
-			};
-
-		return outcomes[letterOrder];
-	}
-
-	// Try each next letter brute force
-	var remainingIsUnwinnable = true;
-	for(i in remainingLetters) {
-		// track the new word
-		var currentLetter = remainingLetters[i];
-		var newWord = activeWord + currentLetter;
+	// For every sorted letter combo, see if we can make it
+	// using the remaining letters
+	for(word in validWords) {
+		// create new words
+		var newWords = verifiedWords.slice();
+		newWords.push(word);
 		
-		// Track the played letters
-		var curLetterOrder = letterOrder + currentLetter
-		
-		// Remove from remainingLetters
-		var newLetters = remainingLetters.slice();
-		newLetters.splice(i, 1);
+		// change the remaining letters
+		var pattern = "[" + word + "]";
+		var re = new RegExp(pattern, "g");
+		var newLetters = remainingLetters.replace(re, '');
 
-		var sortedNew = newLetters.sort().join('');
-
-		// No words that can be created with newWord as the prefix
-		var failLookahead = trie.maybe(newWord, dictTrie) === false;
-		if(failLookahead) {
+		if(knownFailures[newLetters]) {
 			continue;
 		}
+		var newValidWords = pruneList(validWords, newLetters);
 
-		// if it's a word or not, try adding a letter
-		var continueOutcome = solveShh(newWord, verifiedWords, newLetters, curLetterOrder);
-		if(continueOutcome.win === true) {
-			remainingIsUnwinnable = false;
-			attemptedSets[sortedNew] = true;
-		}
-
-		// If the newWord is a word, then there are two
-		// paths, accept word and reject word.
-		if(DICT[newWord] !== undefined && newWord.length > 2) {
-			var newWordList = verifiedWords.slice();
-			newWordList.push(newWord);
-
-			// Solve the rest accepting the word
-			// add a + to letterOrder param to indicate alternate path
-			var newLetterOrder = curLetterOrder + '+';
-			var acceptOutcome = solveShh('', newWordList, newLetters, newLetterOrder);
-			
-			// If this results in a win, then this letter set is winnable!
-			if(acceptOutcome.win === true) {
-				remainingIsUnwinnable = false;
-				attemptedSets[sortedNew] = true;
+		var solution = solveShh(newWords, newLetters, newValidWords);
+		
+		// Join the inner solutions with our own
+		if(solution) {
+			for(key in solution){
+				validSolutions[key] = solution[key];
 			}
 		}
 	}
-	// If, after trying all of the remaining letters, there has
-	// not been any win, then the sorted remaining letters must 
-	// be an unwinnable set
-	if(remainingIsUnwinnable && attemptedSets[remainingSorted] === undefined) {
-		attemptedSets[remainingSorted] = false;	
+
+	if(Object.keys(validSolutions).length === 0) {
+		// This implies that 'remainigLetters' is a failure case
+		// for any future passes
+		knownFailures[remainingLetters] = true;
+		return false;
 	}
 
-	 outcomes[letterOrder] = {
-		win: false,
-		words: verifiedWords,
-		unplayed: remainingSorted,
-		inPlay: activeWord
-	};
-	return outcomes[letterOrder];
+	return validSolutions;
 }
 
-function createWinnableSets(wordList) {
-	var winners = {};
-	for(i in wordList) {
-		var word = wordList[i];
-		var sorted = word.split('').sort().join('');
-		winners[sorted] = true;
+// Given an array and a letter list, prune all the 
+// impossible words and return that array
+var MEMOIZED_PRUNE_LIST = {};
+function pruneList(validWords, remainingLetters) {
+	if(MEMOIZED_PRUNE_LIST[remainingLetters]) {
+		return MEMOIZED_PRUNE_LIST[remainingLetters]
 	}
-	return winners;
+
+	var newList = {};
+	for(word in validWords) {
+		if(checkWord(word, remainingLetters)){
+			newList[word] = validWords[word];
+		}
+	}
+
+	MEMOIZED_PRUNE_LIST[remainingLetters] = newList;
+	return newList;
 }
+
+// Test that letters has enough letters to 
+function checkWord(word, letters) {
+	//console.log(word, letters);
+	var cCount = countCharacters(word);
+	//console.log(cCount);
+	for(var i in letters) {
+		var c = letters[i];
+		cCount[c] -= 1;
+	}
+
+	for(key in cCount) {
+		// Negative numbers mean we have more than enough letters
+		if(cCount[key] > 0) {
+			return false;
+		}
+	}
+	return true;
+}
+
 
 function loadDict(callback) {
   var results = {};
@@ -166,3 +149,52 @@ function loadDict(callback) {
   });
 }
 
+function countCharacters(input){
+	var characterCounts = {};
+
+	for(var i = 0; i < input.length; i++){
+		var c = input[i];
+
+		if(characterCounts[c] === undefined) {
+			characterCounts[c] = 1;
+		}
+		else {
+			characterCounts[c] += 1;
+		}
+	}
+
+	return characterCounts;
+}
+
+function allUnique(input) {
+	var characterCounts = countCharacters(input);
+ 
+	for(character in characterCounts){
+		if(characterCounts[character] !== 1){
+			return false;
+		}
+	}
+
+	return true;
+}
+
+function createWinnableSets(wordList) {
+	var winners = {};
+	for(i in wordList) {
+		var word = wordList[i];
+		
+		if(!allUnique(word)) continue;
+		
+		var sorted = word.split('').sort().join('');
+		if(sorted.length < 3) continue;
+
+		if(winners[sorted] === undefined) {
+			winners[sorted] = [word];
+		}
+		else {
+			winners[sorted].push(word);	
+		}
+		
+	}
+	return winners;
+}
