@@ -2,8 +2,8 @@ var LRU = require("lru-cache");
 
 // GLOBALS
 var START = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';;
-var KNOWN_FAILURES = LRU(1024);
-var MEMOIZED_PRUNE_LIST = LRU(1024);
+var KNOWN_FAILURES = LRU(2048);
+var MEMOIZED_PRUNE_LIST = LRU(4096);
 var COMPLETE_DICT;
 
 // STAT KEEPING
@@ -32,6 +32,8 @@ function run(wordObj) {
 
 
 function solveShh(masterValidWords, allLetters, winningWords) {
+	if(KNOWN_FAILURES.get(allLetters)) return;
+	
 	// State Holders
 	var validWords = masterValidWords.slice();
 	var remainingLetters = allLetters + '';
@@ -39,6 +41,13 @@ function solveShh(masterValidWords, allLetters, winningWords) {
 	while(validWords.length > 0) {
 		// get the next word
 		var nextWordObj = selectWord(validWords, remainingLetters);
+
+		// We were unable to select a word.
+		// Removing words from the list won't 
+		// create a new word that could be selected
+		if(nextWordObj.word === '') {
+			break;
+		}
 
 		// Add to our list
 		var cpyWords = winningWords.slice();
@@ -52,13 +61,16 @@ function solveShh(masterValidWords, allLetters, winningWords) {
 			printClarifiedSolution(cpyWords, nextWordObj.remainingLetters);
 		}
 
-		// No word could be selected, or no words coming up
-		if(nextWordObj.word === '' || nextWordObj.validWords.length === 0) {
+		// No words coming up after selection
+		// we may be able to select a new word in THIS state
+		// but we can't recurse.
+		if(nextWordObj.validWords.length === 0) {
 			continue;
 		}
 
 		solveShh(nextWordObj.validWords, nextWordObj.remainingLetters, cpyWords);
 	}
+	KNOWN_FAILURES.set(allLetters, true);
 }
 
 // Given an array and a letter list, prune all the 
@@ -98,7 +110,7 @@ function selectWord(validWords, remainingLetters) {
 		var newLetters = remainingLetters.replace(re, '');
 
 		// Not allowed to use 2 letter words
-		if(KNOWN_FAILURES.get(newLetters) || newLetters.length < 3 || getVowels(newLetters) === 0) {
+		if(newLetters.length < 3) {
 			continue;
 		}
 
@@ -112,7 +124,9 @@ function selectWord(validWords, remainingLetters) {
 		}
 	}
 
-	// We selected a word, lets prune.
+	// No selection no pruning
+	if(bestWord === '') return {word: ''};
+
 	var bestNewValidWords = pruneList(validWords, bestNewLetters);
 
 	//console.log("SELECTED A WORD", bestOverlapWord);
@@ -272,7 +286,7 @@ function printClarifiedSolution(winningWords, remainingLetters){
 	if(remainingLetters.length < BEST_WIN_SO_FAR) {
 		BEST_WIN_SO_FAR = remainingLetters.length;
 	}
-	
+
 	var clarifiedSolution = {};
 
 	for(var i in winningWords) {
@@ -283,5 +297,6 @@ function printClarifiedSolution(winningWords, remainingLetters){
 
 	FOUND_SOLUTIONS[remainingLetters] = clarifiedSolution;
 	console.log("WINNER", remainingLetters.length, remainingLetters);
+	console.log("FOUND AT", (new Date().getTime()) - startTime, "ms");
 	console.log(clarifiedSolution);
 }
