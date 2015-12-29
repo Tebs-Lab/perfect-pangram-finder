@@ -1,6 +1,7 @@
 var LRU = require("lru-cache");
 
 // GLOBALS
+var START = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';;
 var KNOWN_FAILURES = LRU(1024);
 var MEMOIZED_PRUNE_LIST = LRU(1024);
 var COMPLETE_DICT;
@@ -17,8 +18,6 @@ loadDict(run);
 // console.log(checkWord('knife', 'knif'));
 
 function run(wordObj) {
-	var START = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
 	// create the set of winnable single word sets
 	COMPLETE_DICT = createWinnableSets(Object.keys(wordObj));
 	console.log("created winnable sets");
@@ -26,87 +25,40 @@ function run(wordObj) {
 	var validWords = Object.keys(COMPLETE_DICT);
 	console.log(validWords.length, " Total initial dictionary entries");
 
-	// Experiment, sort by fewest vowels first
-	// This order will always be maintained, so just do it once
-	validWords.sort(fewVowelsLongest);
-	//for(var i = 0; i < 100; i++) console.log(validWords[i]);
-
 	startTime = new Date().getTime();
-	var solutions = solveShh([], START, validWords);
-	
-	printClarifiedSolutions(solutions);
+	solveShh(validWords, START, []);
+	console.log(FOUND_SOLUTIONS);
 }
 
-function solveShh(verifiedWords, remainingLetters, validWords) {
-	var validSolutions = {};
 
-	if(remainingLetters.length === 0) {
-		var returnObj = {};
-		returnObj[verifiedWords.join('+')] = verifiedWords;
-		console.log(verifiedWords);
-		return returnObj;
-	}
+function solveShh(masterValidWords, allLetters, winningWords) {
+	// State Holders
+	var validWords = masterValidWords.slice();
+	var remainingLetters = allLetters + '';
 
-	// For every sorted letter combo, see if we can make it
-	// using the remaining letters
-	for(var i = 0; i < validWords.length; i++) {
-		actualIterationCount++;
+	while(validWords.length > 0) {
+		// get the next word
+		var nextWordObj = selectWord(validWords, remainingLetters);
 
-		var word = validWords[i];
+		// Add to our list
+		var cpyWords = winningWords.slice();
+		cpyWords.push(nextWordObj.word);
 
-		// change the remaining letters
-		var pattern = "[" + word + "]";
-		var re = new RegExp(pattern, "g");
-		var newLetters = remainingLetters.replace(re, '');
+		// Remove the word from our list
+		validWords.splice(nextWordObj.idx, 1);
 
-		// Not allowed to use 2 letter words
-		if(KNOWN_FAILURES.get(newLetters) || newLetters.length < 3 || getVowels(newLetters) === 0) {
+		// Close enough...
+		if(nextWordObj.remainingLetters.length <= BEST_WIN_SO_FAR) {
+			printClarifiedSolution(cpyWords, nextWordObj.remainingLetters);
+		}
+
+		// No word could be selected, or no words coming up
+		if(nextWordObj.word === '' || nextWordObj.validWords.length === 0) {
 			continue;
 		}
 
-		// The letters might be valid, create the pruned list
-		var newValidWords = pruneList(validWords, newLetters);
-
-		// Don't bother recursing if we're not gonna find a word
-		if(newValidWords.length === 0) continue;
-
-		// create new chosen words
-		var newWords = verifiedWords.slice();
-		newWords.push(word);
-
-		var solution = solveShh(newWords, newLetters, newValidWords);
-		
-		// Join the inner solutions with our own
-		if(solution) {
-			for(key in solution){
-				validSolutions[key] = solution[key];
-			}
-		}
+		solveShh(nextWordObj.validWords, nextWordObj.remainingLetters, cpyWords);
 	}
-
-    // DEBUG
-	if(finishedTrees % 50000 === 0){
-		var now = new Date().getTime();
-		var timePassed = now - startTime;
-
-		console.log('===========================');
-		console.log(timePassed / actualIterationCount, "ms per true iteration");
-		console.log(timePassed / finishedTrees, "ms per tree termination");
-		console.log(finishedTrees, " Trees terminated");
-		console.log(actualIterationCount, "true iterations");
-		console.log(actualIterationCount/77508760, "% seen sets");
-	}
-	finishedTrees++;
-    // END DEBUG
-
-	if(Object.keys(validSolutions).length === 0) {
-		// This implies that 'remainigLetters' is a failure case
-		// for any future passes
-		KNOWN_FAILURES.set(remainingLetters, true);
-		return false;
-	}
-
-	return validSolutions;
 }
 
 // Given an array and a letter list, prune all the 
@@ -130,18 +82,82 @@ function pruneList(validWords, remainingLetters) {
 	return newList;
 }
 
-function fewVowelsLongest(a, b){
-	var vDiff = compareVowels(a, b);
-	if(vDiff === 0) return compareLength(a, b);
-	return vDiff;
+function selectWord(validWords, remainingLetters) {
+	var bestOverlap = Infinity;
+	var bestWord = '';
+	var bestWordIdx = 0;
+	var bestNewLetters = remainingLetters;
+	var letterHistogram = constructHistogram(validWords);
+
+	for(var i = 0; i < validWords.length; i++){
+		var word = validWords[i];
+
+		// change the remaining letters
+		var pattern = "[" + word + "]";
+		var re = new RegExp(pattern, "g");
+		var newLetters = remainingLetters.replace(re, '');
+
+		// Not allowed to use 2 letter words
+		if(KNOWN_FAILURES.get(newLetters) || newLetters.length < 3 || getVowels(newLetters) === 0) {
+			continue;
+		}
+
+		// check overlap heuristic
+		var overlapH = overlapHeuristic(letterHistogram, newLetters);
+		if(overlapH < bestOverlap) {
+			bestOverlap = overlapH;
+			bestWord = word;
+			bestWordIdx = i;
+			bestNewLetters = newLetters;
+		}
+	}
+
+	// We selected a word, lets prune.
+	var bestNewValidWords = pruneList(validWords, bestNewLetters);
+
+	//console.log("SELECTED A WORD", bestOverlapWord);
+	var returnObj = {
+		word: bestWord,
+		idx: bestWordIdx,
+		remainingLetters: bestNewLetters,
+		validWords: bestNewValidWords
+	};
+
+	return returnObj;
 }
 
-function compareLength(a, b){
-	return b.length - a.length;
+/**
+ *  Given a list of valid words, and the remaining letters
+ *  return a value representing the degree to which the
+ *  words in validWords share the same letters as remainingLetters
+ */
+function overlapHeuristic(letterHistogram, remainingLetters) {
+	// For letters in remaining letters, get the sum
+	var sum = 0;
+	for(i = 0; i < remainingLetters.length; i++) {
+		sum += letterHistogram[remainingLetters[i]];
+	}
+
+	return sum;
 }
 
-function compareVowels(a, b) {
-	return getVowels(a) - getVowels(b);
+function constructHistogram(validWords){
+	var letterHistogram = {};
+
+	// Faster than branching?
+	for(var i = 0; i < START.length; i++){
+		letterHistogram[START[i]] = 0;
+	}
+
+	// Count ALL the possible remaining letters
+	for(i = 0; i < validWords.length; i++) {
+		var curWord = validWords[i];
+		for(var j = 0; j < curWord.length; j++){
+			letterHistogram[curWord[j]] += 1;
+		}
+	}
+
+	return letterHistogram;
 }
 
 function getVowels(str) {
@@ -243,17 +259,29 @@ function createWinnableSets(wordList) {
 	return winners;
 }
 
-function printClarifiedSolutions(solutions){
-	var clarifiedSolutions = {};
-	for(var key in solutions) {
-		var clarifiedSolution = {};
-		var sWordList = solution[key];
-		for(var i in sWordList) {
-			var curSortedWord = sWordList[i];
-			var realWords = COMPLETE_DICT[curSortedWord];
-			clarifiedSolution[curSortedWord] = realWords;
-		}
-		clarifiedSolutions[key] = clarifiedSolution;
+var FOUND_SOLUTIONS = {};
+var BEST_WIN_SO_FAR = 26;
+function printClarifiedSolution(winningWords, remainingLetters){
+	// don't print known solutions, we do this
+	// because we continue to search over the same space 
+	// even when we are within n
+	if(FOUND_SOLUTIONS[remainingLetters]){
+		return;
 	}
-	console.log(clarifiedSolutions);
+
+	if(remainingLetters.length < BEST_WIN_SO_FAR) {
+		BEST_WIN_SO_FAR = remainingLetters.length;
+	}
+	
+	var clarifiedSolution = {};
+
+	for(var i in winningWords) {
+		var curSortedWord = winningWords[i];
+		var realWords = COMPLETE_DICT[curSortedWord];
+		clarifiedSolution[curSortedWord] = realWords;
+	}
+
+	FOUND_SOLUTIONS[remainingLetters] = clarifiedSolution;
+	console.log("WINNER", remainingLetters.length, remainingLetters);
+	console.log(clarifiedSolution);
 }
