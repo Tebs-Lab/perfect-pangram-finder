@@ -28,7 +28,8 @@ function run(wordObj) {
 
 	// Experiment, sort by fewest vowels first
 	// This order will always be maintained, so just do it once
-	validWords.sort(longestSingleVowel);
+	validWords.sort(fewVowelsLongest);
+	//for(var i = 0; i < 100; i++) console.log(validWords[i]);
 
 	startTime = new Date().getTime();
 	var solutions = solveShh([], START, validWords);
