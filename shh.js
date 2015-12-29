@@ -14,9 +14,6 @@ var startTime;
 
 // Main entry
 loadDict(run);
-// console.log(checkWord('knife', 'knife'));
-// console.log(checkWord('knife', 'knifes'));
-// console.log(checkWord('knife', 'knif'));
 
 function run(wordObj) {
 	// create the set of winnable single word sets
@@ -30,7 +27,6 @@ function run(wordObj) {
 
 	startTime = new Date().getTime();
 	solveShh(validWords, START, []);
-	console.log(FOUND_SOLUTIONS);
 }
 
 
@@ -102,15 +98,12 @@ function selectWord(validWords, remainingLetters) {
 	var bestWord = '';
 	var bestWordIdx = 0;
 	var bestNewLetters = remainingLetters;
-	var letterHistogram = constructHistogram(validWords);
 
-	var bvr = 0;
-	var maxUncommon = 0;
-	var minUncommon = Infinity;
 	for(var i = 0; i < validWords.length; i++){
 		var word = validWords[i];
 
-		if(remainingLetters.length - word.length < 3) {
+		var charsLeft = remainingLetters.length - word.length;
+		if(charsLeft < 3) {
 			continue;
 		}
 
@@ -120,8 +113,11 @@ function selectWord(validWords, remainingLetters) {
 		// 0-1, 1 means all consanants 
 		var vowelRatio = getVowelRatio(word);
 
-		// Preference vowel ratio a bit
-		var H = uncommonRating + (vowelRatio*2);
+		// preferences fewer remaining chars
+		// 0-1, 1 means closest to 0 chars left
+		var remainingVal = (26 - charsLeft) / 26;
+
+		var H = (3 * remainingVal);
 		if(H > bestH) {
 			bestH = H;
 			bestWord = word;
@@ -179,7 +175,8 @@ function getUncommonRate(word) {
 	// 5301 - 16551.66
 	var scaledRating = (unscaledRating - 5301) / 11250.66;
 	
-	return scaledRating;
+	// So that a high value means uncommon letters
+	return 1 / scaledRating;
 }
 
 function constructHistogram(validWords){
@@ -309,6 +306,7 @@ function printClarifiedSolution(winningWords, remainingLetters){
 	if(FOUND_SOLUTIONS[remainingLetters]){
 		return;
 	}
+	FOUND_SOLUTIONS[remainingLetters] = true;
 
 	if(remainingLetters.length < BEST_WIN_SO_FAR) {
 		BEST_WIN_SO_FAR = remainingLetters.length;
@@ -322,7 +320,6 @@ function printClarifiedSolution(winningWords, remainingLetters){
 		clarifiedSolution[curSortedWord] = realWords;
 	}
 
-	FOUND_SOLUTIONS[remainingLetters] = clarifiedSolution;
 	console.log("WINNER", remainingLetters.length, remainingLetters);
 	console.log("FOUND AT", (new Date().getTime()) - startTime, "ms");
 	console.log(clarifiedSolution);
