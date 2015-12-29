@@ -5,6 +5,7 @@ var START = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';;
 var KNOWN_FAILURES = LRU(2048);
 var MEMOIZED_PRUNE_LIST = LRU(4096);
 var COMPLETE_DICT;
+var COMPLETE_HISTOGRAM;
 
 // STAT KEEPING
 var finishedTrees = 0;
@@ -24,6 +25,8 @@ function run(wordObj) {
 
 	var validWords = Object.keys(COMPLETE_DICT);
 	console.log(validWords.length, " Total initial dictionary entries");
+
+	COMPLETE_HISTOGRAM = constructHistogram(validWords);
 
 	startTime = new Date().getTime();
 	solveShh(validWords, START, []);
@@ -95,41 +98,47 @@ function pruneList(validWords, remainingLetters) {
 }
 
 function selectWord(validWords, remainingLetters) {
-	var bestOverlap = Infinity;
+	var bestH = 0;
 	var bestWord = '';
 	var bestWordIdx = 0;
 	var bestNewLetters = remainingLetters;
 	var letterHistogram = constructHistogram(validWords);
 
+	var bvr = 0;
+	var maxUncommon = 0;
+	var minUncommon = Infinity;
 	for(var i = 0; i < validWords.length; i++){
 		var word = validWords[i];
 
-		// change the remaining letters
-		var pattern = "[" + word + "]";
-		var re = new RegExp(pattern, "g");
-		var newLetters = remainingLetters.replace(re, '');
-
-		// Not allowed to use 2 letter words
-		if(newLetters.length < 3) {
+		if(remainingLetters.length - word.length < 3) {
 			continue;
 		}
 
-		// check overlap heuristic
-		var overlapH = overlapHeuristic(letterHistogram, newLetters);
-		if(overlapH < bestOverlap) {
-			bestOverlap = overlapH;
+		// 0-1, 1 means word has the maximum uncommonness per letter
+		var uncommonRating = getUncommonRate(word);
+
+		// 0-1, 1 means all consanants 
+		var vowelRatio = getVowelRatio(word);
+
+		// Preference vowel ratio a bit
+		var H = uncommonRating + (vowelRatio*2);
+		if(H > bestH) {
+			bestH = H;
 			bestWord = word;
 			bestWordIdx = i;
-			bestNewLetters = newLetters;
 		}
 	}
 
 	// No selection no pruning
 	if(bestWord === '') return {word: ''};
 
+	// get the new remaining letters
+	var pattern = "[" + bestWord + "]";
+	var re = new RegExp(pattern, "g");
+	bestNewLetters = remainingLetters.replace(re, '');
+
 	var bestNewValidWords = pruneList(validWords, bestNewLetters);
 
-	//console.log("SELECTED A WORD", bestOverlapWord);
 	var returnObj = {
 		word: bestWord,
 		idx: bestWordIdx,
@@ -140,19 +149,37 @@ function selectWord(validWords, remainingLetters) {
 	return returnObj;
 }
 
+function getVowelRatio(word) {
+	var vowelCount = getVowels(word);
+	var consCount = word.length - vowelCount;
+	var vowelRatio = consCount / vowelCount;
+
+	// 8 === Max+1, found through experimentation
+	if(vowelCount === 0) vowelRatio = 8;
+
+	// Scale to 0-1
+	return vowelRatio / 8;
+}
+
 /**
- *  Given a list of valid words, and the remaining letters
- *  return a value representing the degree to which the
- *  words in validWords share the same letters as remainingLetters
+ *  Given a word, give it an uncommonnness rating.
+ *  the basis for this rating is the sum of 
  */
-function overlapHeuristic(letterHistogram, remainingLetters) {
+function getUncommonRate(word) {
 	// For letters in remaining letters, get the sum
 	var sum = 0;
-	for(i = 0; i < remainingLetters.length; i++) {
-		sum += letterHistogram[remainingLetters[i]];
+	for(i = 0; i < word.length; i++) {
+		sum += COMPLETE_HISTOGRAM[word[i]];
 	}
+	
+	// scale to uncommonness per letter
+	var unscaledRating = sum / word.length;
 
-	return sum;
+	// scale to 0-1, using a bound found through experimentation:
+	// 5301 - 16551.66
+	var scaledRating = (unscaledRating - 5301) / 11250.66;
+	
+	return scaledRating;
 }
 
 function constructHistogram(validWords){
