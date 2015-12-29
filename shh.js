@@ -1,152 +1,173 @@
+var util = require('./utilities');
+
 var LRU = require("lru-cache");
+var PriorityQueue = require('priorityqueuejs');
 
-// GLOBALS
-var START = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';;
-var KNOWN_FAILURES = LRU(2048);
+// GLOBAL CONSTANTS
+var ALL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';;
+var COMPACT_DICT;
+var COMPACT_KEYS;
+var LETTER_FREQUENCY;
+
+// MEMOIZERS
 var MEMOIZED_PRUNE_LIST = LRU(4096);
-var COMPLETE_DICT;
-var COMPLETE_HISTOGRAM;
-
-// STAT KEEPING
-var finishedTrees = 0;
-var actualIterationCount = 0;
-var startTime;
+var BEST_WIN_SO_FAR = 26;
 
 // Main entry
-loadDict(run);
+util.loadDict(bootstrapSearch);
 
-function run(wordObj) {
+function bootstrapSearch(wordList) {
 	// create the set of winnable single word sets
-	COMPLETE_DICT = createWinnableSets(Object.keys(wordObj));
+	COMPACT_DICT = util.createWinnableSets(wordList);
 	console.log("created winnable sets");
 
-	var validWords = Object.keys(COMPLETE_DICT);
-	console.log(validWords.length, " Total initial dictionary entries");
+	COMPACT_KEYS = Object.keys(COMPACT_DICT);
+	console.log(COMPACT_KEYS.length, " Total initial dictionary entries");
 
-	COMPLETE_HISTOGRAM = constructHistogram(validWords);
+	LETTER_FREQUENCY = util.constructHistogram(COMPACT_KEYS);
+	console.log("constructed letter frequency:", LETTER_FREQUENCY);
 
-	startTime = new Date().getTime();
-	solveShh(validWords, START, []);
+	solveShh(COMPACT_KEYS, ALL_LETTERS);
 }
 
-
-function solveShh(masterValidWords, allLetters, winningWords) {
-	if(KNOWN_FAILURES.get(allLetters)) return;
+function solveShh(allLetters) {
+	// Bootstrap A*
+	var openSet   = new PriorityQueue(nodeComparator);
+	var closedSet = new Set();
 	
-	// State Holders
-	var validWords = masterValidWords.slice();
-	var remainingLetters = allLetters + '';
+	// Starting node
+	openSet.enq(constructNode(undefined, ''));
 
-	while(validWords.length > 0) {
-		// get the next word
-		var nextWordObj = selectWord(validWords, remainingLetters);
+	while(!openSet.isEmpty()) {
+		// get the next node, and mark it visited
+		var currentNode = openSet.deq();
+		closedSet.add(currentNode.letters);
 
-		// We were unable to select a word.
-		// Removing words from the list won't 
-		// create a new word that could be selected
-		if(nextWordObj.word === '') {
-			break;
+		// Check for victory!
+		if(currentNode.letters.length < BEST_WIN_SO_FAR) {
+			util.printClarifiedSolution(currentNode, COMPACT_DICT);
+			BEST_WIN_SO_FAR = currentNode.letters.length;
 		}
 
-		// Add to our list
-		var cpyWords = winningWords.slice();
-		cpyWords.push(nextWordObj.word);
-
-		// Remove the word from our list
-		validWords.splice(nextWordObj.idx, 1);
-
-		// Close enough...
-		if(nextWordObj.remainingLetters.length <= BEST_WIN_SO_FAR) {
-			printClarifiedSolution(cpyWords, nextWordObj.remainingLetters);
-		}
-
-		// No words coming up after selection
-		// we may be able to select a new word in THIS state
-		// but we can't recurse.
-		if(nextWordObj.validWords.length === 0) {
-			continue;
-		}
-
-		solveShh(nextWordObj.validWords, nextWordObj.remainingLetters, cpyWords);
+		// Construct the next visitable nodes
+		constructAdjacentNodes(currentNode, openSet, closedSet);
 	}
-	KNOWN_FAILURES.set(allLetters, true);
 }
 
-// Given an array and a letter list, prune all the 
-// impossible words and return that array
-function pruneList(validWords, remainingLetters) {
-	var memo = MEMOIZED_PRUNE_LIST.get(remainingLetters);
-	if(memo) {
-		return memo;
-	}
-
-	var newList = [];
-	for(var i = 0; i < validWords.length; i++) {
-		var word = validWords[i];
-
-		if(checkWord(word, remainingLetters)){
-			newList.push(word);
-		}
-	}
-
-	MEMOIZED_PRUNE_LIST.set(remainingLetters, newList);
-	return newList;
-}
-
-function selectWord(validWords, remainingLetters) {
-	var bestH = 0;
-	var bestWord = '';
-	var bestWordIdx = 0;
-	var bestNewLetters = remainingLetters;
-
+/* *
+ * =====SIDE AFFECTING FOR PERFORMANCE======
+ *
+ * Given a set of letters (which uniquely identifies a node)
+ * construct the set of open adjacent nodes. Using the parameters
+ * (which are references) 
+ */
+function constructAdjacentNodes(parent, openSet, closedSet) {
+	// Get the list of available words
+	var validWords = pruneList(parent.letters);
 	for(var i = 0; i < validWords.length; i++){
 		var word = validWords[i];
 
-		var charsLeft = remainingLetters.length - word.length;
+		var charsLeft = parent.letters.length - word.length;
 		if(charsLeft < 3) {
 			continue;
 		}
 
-		// 0-1, 1 means word has the maximum uncommonness per letter
-		var uncommonRating = getUncommonRate(word);
+		// Compute the new remaining letters for this node
+		var pattern = "[" + word + "]";
+		var re = new RegExp(pattern, "g");
+		var nodeLetters = parent.letters.replace(re, '');
 
-		// 0-1, 1 means all consanants 
-		var vowelRatio = getVowelRatio(word);
+		// If we've been there, don't go again
+		if(closedSet.has(nodeLetters)) continue;
+		openSet.enq(constructNode(parent, word, nodeLetters));
+	}
+}
 
-		// preferences fewer remaining chars
-		// 0-1, 1 means closest to 0 chars left
-		var remainingVal = (26 - charsLeft) / 26;
-
-		var H = (3 * remainingVal);
-		if(H > bestH) {
-			bestH = H;
-			bestWord = word;
-			bestWordIdx = i;
+/* *
+ * given a parent node; a word to choose; and the letters
+ * remaining after choosing the word; return a node object
+ */
+function constructNode(parent, chosenWord, lettersPostChoice) {
+	// Special case for constructing the root node
+	if(parent === undefined) {
+		return {
+			parent: undefined,
+			word: '',
+			letters: ALL_LETTERS,
+			cost: 0,
+			heuristic: 26, // Defining edge weight as letters unused
+			utility: 26
 		}
 	}
 
-	// No selection no pruning
-	if(bestWord === '') return {word: ''};
+	// Cost is the number of letters in the word
+	var parentCost = parent.cost;
+	var costOfSelection = chosenWord.length;
+	var cost = parentCost + costOfSelection;
 
-	// get the new remaining letters
-	var pattern = "[" + bestWord + "]";
-	var re = new RegExp(pattern, "g");
-	bestNewLetters = remainingLetters.replace(re, '');
+	// Heuristic is an UNDERESTIMATE of the true cost
+	// This means, heuristic must never exceed 
+	// parent.letters.length - chosenWord.length 
+	var heuristic = H(lettersPostChoice, chosenWord);
 
-	var bestNewValidWords = pruneList(validWords, bestNewLetters);
+	// Utility of a node is it's known cost + it's estimated cost
+	// until the goal.
+	var utility = cost + heuristic;
 
-	var returnObj = {
-		word: bestWord,
-		idx: bestWordIdx,
-		remainingLetters: bestNewLetters,
-		validWords: bestNewValidWords
-	};
+	// The node!
+	var node = {
+		parent: parent,
+		word: chosenWord,
+		letters: lettersPostChoice,
+		cost: cost,
+		heuristic: heuristic,
+		utility: utility
+	}
+	//console.log(node);
 
-	return returnObj;
+	return node;
 }
 
+// Used by our priority queue to properly value the next node
+function nodeComparator(a, b) {
+	return  b.utility - a.utility;
+}
+
+/* *
+ * Return a heuristic value which underestimates the cost of 
+ * finding a solution after choosing chosenWord. 
+ * 
+ * In our case, we know the return value must be less than 
+ * remainingLetters.length - chosenWord.length BC our edge
+ * costs are the number of letters in the word.
+ * 
+ * Recall, in this problem all paths to a solution actually 
+ * have the SAME cost, our heuristic therefore must preference
+ * paths which are likely to lead to ANY solution. 
+ */
+function H(remainingLetters, chosenWord) {
+	// 0-1, 1 means word has the maximum uncommonness per letter
+	var uncommonRating = getUncommonRate(chosenWord);
+
+	// 0-1, 1 means all consanants 
+	var vowelRatio = getVowelRatio(chosenWord);
+
+	// Known b/c of how we formulated the problem
+	var trueCost = remainingLetters.length - chosenWord.length;
+
+	// console.log(remainingLetters, chosenWord, uncommonRating, vowelRatio, trueCost);
+	
+	var h = trueCost - uncommonRating - vowelRatio;
+	return Math.max(0, h); // negative edge weight breaks things.
+}
+
+/**
+ *  Given a word, give it a rating of how many
+ *  vowels to consannats it has. 
+ *  No consanants = 0, all consanats = 1
+ */
 function getVowelRatio(word) {
-	var vowelCount = getVowels(word);
+	var vowelCount = util.getVowels(word);
 	var consCount = word.length - vowelCount;
 	var vowelRatio = consCount / vowelCount;
 
@@ -165,7 +186,7 @@ function getUncommonRate(word) {
 	// For letters in remaining letters, get the sum
 	var sum = 0;
 	for(i = 0; i < word.length; i++) {
-		sum += COMPLETE_HISTOGRAM[word[i]];
+		sum += LETTER_FREQUENCY[word[i]];
 	}
 	
 	// scale to uncommonness per letter
@@ -179,148 +200,25 @@ function getUncommonRate(word) {
 	return 1 / scaledRating;
 }
 
-function constructHistogram(validWords){
-	var letterHistogram = {};
-
-	// Faster than branching?
-	for(var i = 0; i < START.length; i++){
-		letterHistogram[START[i]] = 0;
+/* *
+ * Given a set of letters remaining, return a list of 
+ * words from COMPACT_KEYS that can still be made.
+ */
+function pruneList(remainingLetters) {
+	var memo = MEMOIZED_PRUNE_LIST.get(remainingLetters);
+	if(memo) {
+		return memo;
 	}
 
-	// Count ALL the possible remaining letters
-	for(i = 0; i < validWords.length; i++) {
-		var curWord = validWords[i];
-		for(var j = 0; j < curWord.length; j++){
-			letterHistogram[curWord[j]] += 1;
+	var newList = [];
+	for(var i = 0; i < COMPACT_KEYS.length; i++) {
+		var word = COMPACT_KEYS[i];
+
+		if(util.checkWord(word, remainingLetters)){
+			newList.push(word);
 		}
 	}
 
-	return letterHistogram;
-}
-
-function getVowels(str) {
-  var m = str.match(/[aeiouy]/gi);
-  return m === null ? 0 : m.length;
-}
-
-// Test that letters has enough letters to 
-function checkWord(word, letters) {
-	if(letters.length < word.length) {
-		return false;
-	}
-
-	var counter = {};
-
-	// Because our subset of letters is sure to only have uniqe letters
-	// we can just set counter to 1
-	for(var i = 0; i < letters.length; i++){
-		var c = letters[i];
-		counter[c] = 1;
-	}
-
-	// If word has a letter that letters didn't have.
-	for(i = 0; i < word.length; i++) {
-		if(counter[word[i]] !== 1) return false;
-	}
-
-	return true;
-}
-
-
-function loadDict(callback) {
-  var results = {};
-  var rl = require('readline').createInterface({
-    input: require('fs').createReadStream('/usr/share/dict/words')
-  });
-
-
-  // for every new line, if it matches the regex, add it to an array
-  // this is ugly regex :)
-  rl.on('line', function (line) {
-    results[line.toUpperCase()] = true;
-  });
-
-
-  // readline emits a close event when the file is read.
-  rl.on('close', function(){
-  	callback(results);
-  });
-}
-
-function countCharacters(input){
-	var characterCounts = {};
-
-	for(var i = 0; i < input.length; i++){
-		var c = input[i];
-
-		if(characterCounts[c] === undefined) {
-			characterCounts[c] = 1;
-		}
-		else {
-			characterCounts[c] += 1;
-		}
-	}
-
-	return characterCounts;
-}
-
-function allUnique(input) {
-	var characterCounts = countCharacters(input);
- 
-	for(character in characterCounts){
-		if(characterCounts[character] !== 1){
-			return false;
-		}
-	}
-
-	return true;
-}
-
-function createWinnableSets(wordList) {
-	var winners = {};
-	for(i in wordList) {
-		var word = wordList[i];
-		
-		if(!allUnique(word)) continue;
-		
-		var sorted = word.split('').sort().join('');
-		if(sorted.length < 3) continue;
-
-		if(winners[sorted] === undefined) {
-			winners[sorted] = [word];
-		}
-		else {
-			winners[sorted].push(word);	
-		}
-		
-	}
-	return winners;
-}
-
-var FOUND_SOLUTIONS = {};
-var BEST_WIN_SO_FAR = 26;
-function printClarifiedSolution(winningWords, remainingLetters){
-	// don't print known solutions, we do this
-	// because we continue to search over the same space 
-	// even when we are within n
-	if(FOUND_SOLUTIONS[remainingLetters]){
-		return;
-	}
-	FOUND_SOLUTIONS[remainingLetters] = true;
-
-	if(remainingLetters.length < BEST_WIN_SO_FAR) {
-		BEST_WIN_SO_FAR = remainingLetters.length;
-	}
-
-	var clarifiedSolution = {};
-
-	for(var i in winningWords) {
-		var curSortedWord = winningWords[i];
-		var realWords = COMPLETE_DICT[curSortedWord];
-		clarifiedSolution[curSortedWord] = realWords;
-	}
-
-	console.log("WINNER", remainingLetters.length, remainingLetters);
-	console.log("FOUND AT", (new Date().getTime()) - startTime, "ms");
-	console.log(clarifiedSolution);
+	MEMOIZED_PRUNE_LIST.set(remainingLetters, newList);
+	return newList;
 }
