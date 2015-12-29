@@ -23,7 +23,7 @@ function createWinnableSets(wordList) {
 
 function constructHistogram(validWords){
 	var letterHistogram = {};
-
+	var totalSum = 0;
 	// Faster than branching?
 	for(var i = 0; i < ALL_LETTERS.length; i++){
 		letterHistogram[ALL_LETTERS[i]] = 0;
@@ -34,7 +34,20 @@ function constructHistogram(validWords){
 		var curWord = validWords[i];
 		for(var j = 0; j < curWord.length; j++){
 			letterHistogram[curWord[j]] += 1;
+			totalSum += 1;
 		}
+	}
+
+	// Invert so uncommon letters are high values
+	var invertedSum = 0;
+	for(var key in letterHistogram) {
+		letterHistogram[key] = totalSum / letterHistogram[key];
+		invertedSum += letterHistogram[key];
+	}
+
+	// Finally, noramlize the inverted values
+	for(key in letterHistogram) {
+		letterHistogram[key] /= invertedSum;
 	}
 
 	return letterHistogram;

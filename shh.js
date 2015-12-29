@@ -44,7 +44,7 @@ function solveShh(allLetters) {
 		closedSet.add(currentNode.letters);
 
 		// Check for victory!
-		if(currentNode.letters.length < BEST_WIN_SO_FAR) {
+		if(currentNode.letters.length <= BEST_WIN_SO_FAR) {
 			util.printClarifiedSolution(currentNode, COMPACT_DICT);
 			BEST_WIN_SO_FAR = currentNode.letters.length;
 		}
@@ -95,12 +95,12 @@ function constructNode(parent, chosenWord, lettersPostChoice) {
 			word: '',
 			letters: ALL_LETTERS,
 			cost: 0,
-			heuristic: 26, // Defining edge weight as letters unused
-			utility: 26
+			heuristic: Infinity, // Defining edge weight as letters unused
+			utility: Infinity
 		}
 	}
 
-	// Cost is the number of letters in the word
+	// All words cost 1!
 	var parentCost = parent.cost;
 	var costOfSelection = chosenWord.length;
 	var cost = parentCost + costOfSelection;
@@ -123,7 +123,6 @@ function constructNode(parent, chosenWord, lettersPostChoice) {
 		heuristic: heuristic,
 		utility: utility
 	}
-	//console.log(node);
 
 	return node;
 }
@@ -136,46 +135,39 @@ function nodeComparator(a, b) {
 /* *
  * Return a heuristic value which underestimates the cost of 
  * finding a solution after choosing chosenWord. 
- * 
- * In our case, we know the return value must be less than 
- * remainingLetters.length - chosenWord.length BC our edge
- * costs are the number of letters in the word.
- * 
- * Recall, in this problem all paths to a solution actually 
- * have the SAME cost, our heuristic therefore must preference
- * paths which are likely to lead to ANY solution. 
  */
 function H(remainingLetters, chosenWord) {
+	// If you can win, then win.
+	if(remainingLetters.length === 0) {
+		return 0;
+	}
+
 	// 0-1, 1 means word has the maximum uncommonness per letter
-	var uncommonRating = getUncommonRate(chosenWord);
+	var uncommonRating = getUncommonRate(remainingLetters);
 
 	// 0-1, 1 means all consanants 
-	var vowelRatio = getVowelRatio(chosenWord);
-
-	// Known b/c of how we formulated the problem
-	var trueCost = remainingLetters.length - chosenWord.length;
-
-	// console.log(remainingLetters, chosenWord, uncommonRating, vowelRatio, trueCost);
+	var vowelRatio = getVowelRatio(remainingLetters);
 	
-	var h = trueCost - uncommonRating - vowelRatio;
+	// h is from 0 to 1. An underestimate of the number of words
+	// before a solution, obviously.
+	var h = ((uncommonRating + vowelRatio) / 2) * remainingLetters.length;
+
 	return Math.max(0, h); // negative edge weight breaks things.
 }
 
 /**
  *  Given a word, give it a rating of how many
  *  vowels to consannats it has. 
- *  No consanants = 0, all consanats = 1
+ *  No consanants = 1, all consanats = 0
  */
 function getVowelRatio(word) {
 	var vowelCount = util.getVowels(word);
 	var consCount = word.length - vowelCount;
-	var vowelRatio = consCount / vowelCount;
 
-	// 8 === Max+1, found through experimentation
-	if(vowelCount === 0) vowelRatio = 8;
-
-	// Scale to 0-1
-	return vowelRatio / 8;
+	if(vowelCount === 0) {
+		return 1;
+	}
+	return consCount / vowelCount;
 }
 
 /**
@@ -189,15 +181,7 @@ function getUncommonRate(word) {
 		sum += LETTER_FREQUENCY[word[i]];
 	}
 	
-	// scale to uncommonness per letter
-	var unscaledRating = sum / word.length;
-
-	// scale to 0-1, using a bound found through experimentation:
-	// 5301 - 16551.66
-	var scaledRating = (unscaledRating - 5301) / 11250.66;
-	
-	// So that a high value means uncommon letters
-	return 1 / scaledRating;
+	return sum;
 }
 
 /* *
