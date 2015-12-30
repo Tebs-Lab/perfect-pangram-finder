@@ -11,7 +11,6 @@ var LETTER_FREQUENCY;
 
 // MEMOIZERS
 var MEMOIZED_PRUNE_LIST = LRU(4096);
-var BEST_WIN_SO_FAR = 26;
 
 // Main entry
 util.loadDict(bootstrapSearch);
@@ -27,27 +26,75 @@ function bootstrapSearch(wordList) {
 	LETTER_FREQUENCY = util.constructHistogram(COMPACT_KEYS);
 	console.log("constructed letter frequency:", LETTER_FREQUENCY);
 
-	solveShh(COMPACT_KEYS, ALL_LETTERS);
+	while(COMPACT_KEYS.length > 3) {
+		var solution = solveShh(COMPACT_KEYS, ALL_LETTERS);
+		var rootNode = findRoot(solution);
+		var sIndex = COMPACT_KEYS.indexOf(rootNode.word);
+		console.log("SPLICED OUT", sIndex, COMPACT_KEYS.splice(sIndex, 1));
+	}
+	
+}
+
+function findRoot(node) {
+	if(node.parent.parent === undefined) return node;
+	return findRoot(node.parent);
 }
 
 function solveShh(allLetters) {
 	// Bootstrap A*
 	var openSet   = new PriorityQueue(nodeComparator);
 	var closedSet = new Set();
+	var bannedRoots = new Set();
 	
 	// Starting node
 	openSet.enq(constructNode(undefined, ''));
+
+	// Because it's possible to search too hard!
+	var nodesSearched = 0;
 
 	while(!openSet.isEmpty()) {
 		// get the next node, and mark it visited
 		var currentNode = openSet.deq();
 		closedSet.add(currentNode.letters);
 
-		// Check for victory!
-		if(currentNode.letters.length <= BEST_WIN_SO_FAR) {
-			util.printClarifiedSolution(currentNode, COMPACT_DICT);
-			BEST_WIN_SO_FAR = currentNode.letters.length;
+		// More fun!
+		if(currentNode && currentNode.parent && !currentNode.parent.parent) {
+			console.log("changed root after", nodesSearched, findRoot(currentNode).word);
+			nodesSearched = 0;
 		}
+
+		if(currentNode.letters.length === 0) {
+			util.printClarifiedSolution(currentNode, COMPACT_DICT);
+			console.log("Found after searching nodes ", nodesSearched);
+			// return currentNode;
+		}
+		nodesSearched++;
+
+		// If it's been awhile since a root change, force one
+		// if(nodesSearched > 5500) {
+		// 	nodesSearched = 0;
+
+		// 	var rootToBan = findRoot(currentNode);
+		// 	var tmpQueue = new PriorityQueue(nodeComparator);
+		// 	var nodesRemoved = 0;
+		// 	openSet.forEach(function(node) {
+		// 		var cRoot = findRoot(node);
+				
+		// 		// careful, compare by reference IS what I want.
+		// 		if(cRoot === rootToBan) {
+		// 			nodesRemoved++;
+		// 			return;
+		// 		}
+
+		// 		tmpQueue.enq(node);
+		// 	});
+		// 	openSet = tmpQueue;
+
+		// 	// Then, splice out the root word
+		// 	var sIndex = COMPACT_KEYS.indexOf(rootToBan.word);
+		// 	console.log("REMOVED NODES", nodesRemoved);
+		// 	console.log("SPLICED OUT", rootToBan.word, sIndex, COMPACT_KEYS.splice(sIndex, 1));
+		// }
 
 		// Construct the next visitable nodes
 		constructAdjacentNodes(currentNode, openSet, closedSet);
@@ -67,15 +114,18 @@ function constructAdjacentNodes(parent, openSet, closedSet) {
 	for(var i = 0; i < validWords.length; i++){
 		var word = validWords[i];
 
-		var charsLeft = parent.letters.length - word.length;
-		if(charsLeft < 3) {
-			continue;
-		}
-
 		// Compute the new remaining letters for this node
 		var pattern = "[" + word + "]";
 		var re = new RegExp(pattern, "g");
 		var nodeLetters = parent.letters.replace(re, '');
+
+		// if it's not a winner, but it's got fewer than 3 letters, it's a loser
+		if(nodeLetters.length < 3 && nodeLetters.length > 0) continue;
+
+		// no vowels, but more than 4 letters, ignore (those aren't real words anyway)
+		if(util.getVowels(nodeLetters) === 0 && nodeLetters.length > 3) {
+			continue;
+		}
 
 		// If we've been there, don't go again
 		if(closedSet.has(nodeLetters)) continue;
@@ -100,7 +150,6 @@ function constructNode(parent, chosenWord, lettersPostChoice) {
 		}
 	}
 
-	// All words cost 1!
 	var parentCost = parent.cost;
 	var costOfSelection = chosenWord.length;
 	var cost = parentCost + costOfSelection;
