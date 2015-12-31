@@ -1,6 +1,4 @@
 var util = require('./utilities');
-
-var LRU = require("lru-cache");
 var PriorityQueue = require('priorityqueuejs');
 
 // GLOBAL CONSTANTS
