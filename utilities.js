@@ -175,8 +175,14 @@ function allUnique(input) {
 }
 
 function printClarifiedSolution(node, compactDictionary){
-	console.log("======================================");
-	console.log("WINNER", node.letters.length, node.letters);
+	console.log("=================WINNER=====================");
+	console.log(node.letters.length, node.letters);
+	_traverseNode(node, compactDictionary);
+}
+
+function printNearWinner(node, compactDictionary) {
+	console.log('------------near winner--------------------');
+	console.log(node.letters.length, node.letters);
 	_traverseNode(node, compactDictionary);
 }
 
@@ -196,7 +202,8 @@ var exporter = {
 	getVowels: getVowels,
 	countCharacters: countCharacters,
 	allUnique: allUnique,
-	printClarifiedSolution: printClarifiedSolution
+	printClarifiedSolution: printClarifiedSolution,
+	printNearWinner: printNearWinner
 };
 
 module.exports = exporter;

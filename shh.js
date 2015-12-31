@@ -49,7 +49,6 @@ function solveShh(allLetters) {
 
 	// Because it's possible to search too hard!
 	var nodesSearched = 0;
-	var foundSolutionWithRoot = false;
 
 	while(!openSet.isEmpty()) {
 		// get the next node, and mark it visited
@@ -57,19 +56,15 @@ function solveShh(allLetters) {
 		closedSet.add(currentNode.letters);
 		//console.log("Explored: ", currentNode.utility.toFixed(3), currentNode.letters, currentNode.word);
 
-		// More fun!
-		if(currentNode && currentNode.parent && !currentNode.parent.parent) {
-			console.log("changed root after", nodesSearched, findRoot(currentNode).word);
-			nodesSearched = 0;
-			foundSolutionWithRoot = false;
-		}
-
-		if(currentNode.letters.length === 0 || currentNode.letters.length < BEST) {
+		if(currentNode.letters.length === 0) {
 			BEST = currentNode.letters.length;
 			util.printClarifiedSolution(currentNode, COMPACT_DICT);
 			console.log("Found after searching nodes ", nodesSearched);
-			foundSolutionWithRoot = true;
 		}
+		else if(currentNode.letters.length < 3) {
+			util.printNearWinner(currentNode, COMPACT_DICT);
+		}
+
 		nodesSearched++;
 		if(nodesSearched % 2000 === 0) console.log((nodesSearched));
 
@@ -138,7 +133,8 @@ function constructNode(parent, chosenWord, lettersPostChoice) {
 
 	// Utility of a node is it's known cost + it's estimated cost
 	// until the goal.
-	var utility = cost + heuristic;
+	//var utility = cost + heuristic;
+	var utility = heuristic * lettersPostChoice.length;
 
 	// The node!
 	var node = {
@@ -172,7 +168,7 @@ function H(remainingLetters, chosenWord) {
 	var vowelRatio = getVowelRatio(remainingLetters);
 	//var shareRate = getSharedLetterRate(remainingLetters);
 	
-	var h = (1 - ((vowelRatio + (uncommonRating*10)) / 2)) * remainingLetters.length;
+	var h = (1 - ((vowelRatio + (uncommonRating*3)) / 4));
 
 	return Math.max(0, h); // negative edge weight breaks things.
 }
@@ -187,7 +183,7 @@ function getVowelRatio(word) {
 }
 
 /**
- *  Given a word, give it an uncommonnness rating per letter.
+ *  Given a word, give it an uncommonnness rating.
  */
 function getUncommonRate(word) {
 	// For letters in remaining letters, get the sum
@@ -196,7 +192,7 @@ function getUncommonRate(word) {
 		sum += LETTER_FREQUENCY[word[i]];
 	}
 	
-	return sum / word.length;
+	return sum;
 }
 
 /* *
