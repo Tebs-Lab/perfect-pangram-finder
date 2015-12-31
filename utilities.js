@@ -1,4 +1,6 @@
 var ALL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+var LRU = require("lru-cache");
+var MEMOIZED_CHECK_WORD = LRU(2048);
 
 function createWinnableSets(wordList) {
 	var winners = {};
@@ -55,7 +57,12 @@ function constructHistogram(validWords){
 
 // Test that letters has enough letters to 
 function checkWord(word, letters) {
+	var memoKey = word + '|' + letters;
+	var memo = MEMOIZED_CHECK_WORD.get(memoKey);
+	if(memo) return memo;
+
 	if(letters.length < word.length) {
+		MEMOIZED_CHECK_WORD.set(memoKey, false);
 		return false;
 	}
 
@@ -73,6 +80,7 @@ function checkWord(word, letters) {
 		if(counter[word[i]] !== 1) return false;
 	}
 
+	MEMOIZED_CHECK_WORD.set(memoKey, true);
 	return true;
 }
 
