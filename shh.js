@@ -27,15 +27,7 @@ function bootstrapSearch(wordList) {
 	console.log("constructed letter frequency:", LETTER_FREQUENCY);
 
 	LETTER_SHARE = util.constructLetterShareHist(COMPACT_KEYS);
-	console.log("constructed letter share", LETTER_SHARE);
-	// console.log(getSharedLetterRate(ALL_LETTERS));
-	// console.log(getSharedLetterRate("ADELSP"));
-	// console.log(getSharedLetterRate("ADE"));
-	// console.log(getSharedLetterRate('CWM'));
-
-	console.log(getVowelRatio("AAAB"));
-	console.log(getVowelRatio("AABB"));
-	console.log(getVowelRatio("ABBB"));
+	console.log("constructed letter share", LETTER_SHARE);;
 
 	while(COMPACT_KEYS.length > 3) {
 		var solution = solveShh(COMPACT_KEYS, ALL_LETTERS);
@@ -223,7 +215,7 @@ function H(remainingLetters, chosenWord) {
 
 	// 0-1
 	var shareRate = getSharedLetterRate(remainingLetters);
-	console.log(remainingLetters, shareRate*10000000, vowelRatio, uncommonRating);
+	//console.log(remainingLetters, shareRate*10000000, vowelRatio, uncommonRating);
 	
 	// h is from 0 to 1. An underestimate of the number of words
 	// before a solution, obviously.
