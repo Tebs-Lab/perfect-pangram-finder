@@ -1,6 +1,4 @@
 var ALL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-var LRU = require("lru-cache");
-var MEMOIZED_CHECK_WORD = LRU(2048);
 
 function createWinnableSets(wordList) {
 	var winners = {};
@@ -45,16 +43,9 @@ function constructFreqHistogram(validWords){
 		}
 	}
 
-	// Invert so uncommon letters are high values
-	var invertedSum = 0;
+	// Each letter has its percent commonness
 	for(var key in letterHistogram) {
-		letterHistogram[key] = totalSum / letterHistogram[key];
-		invertedSum += letterHistogram[key];
-	}
-
-	// Finally, noramlize the inverted values
-	for(key in letterHistogram) {
-		letterHistogram[key] /= invertedSum;
+		letterHistogram[key] = letterHistogram[key] / totalSum;
 	}
 
 	return letterHistogram;
@@ -96,38 +87,17 @@ function constructLetterShareHist(validWords) {
 		}
 	}
 
-	// Invert, so uncommon combos are bigger numbers
-	var invertedSum = 0;
+	// Each key has it's percent common-ness now.
 	for(key in letterShareHist){
-		// if it never appeared, act as it it happend 1 time
-		// for the sake of easy math
-		if(letterShareHist[key] === 0) {
-			letterShareHist[key] = totalSum / 1
-			invertedSum += letterShareHist[key]; 
-		}
-		else{
-			letterShareHist[key] = totalSum / letterShareHist[key];
-			invertedSum += letterShareHist[key];
-		}
-
+		letterShareHist[key] = letterShareHist[key] / totalSum;
 	}
 	
-	// Normalize
-	for(key in letterShareHist) {
-		letterShareHist[key] /= invertedSum;
-	}
-
 	return letterShareHist;
 }
 
 // Test that letters has enough letters to 
 function checkWord(word, letters) {
-	var memoKey = word + '|' + letters;
-	var memo = MEMOIZED_CHECK_WORD.get(memoKey);
-	if(memo) return memo;
-
 	if(letters.length < word.length) {
-		MEMOIZED_CHECK_WORD.set(memoKey, false);
 		return false;
 	}
 
@@ -143,12 +113,10 @@ function checkWord(word, letters) {
 	// If word has a letter that letters didn't have.
 	for(i = 0; i < word.length; i++) {
 		if(counter[word[i]] !== 1) {
-			MEMOIZED_CHECK_WORD.set(memoKey, false);
 			return false;
 		}
 	}
 
-	MEMOIZED_CHECK_WORD.set(memoKey, true);
 	return true;
 }
 

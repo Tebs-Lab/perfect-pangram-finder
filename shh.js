@@ -9,9 +9,6 @@ var COMPACT_DICT;
 var COMPACT_KEYS;
 var LETTER_FREQUENCY;
 
-// MEMOIZERS
-var MEMOIZED_PRUNE_LIST = LRU(4096);
-
 // Main entry
 util.loadDict(bootstrapSearch);
 
@@ -24,10 +21,10 @@ function bootstrapSearch(wordList) {
 	console.log(COMPACT_KEYS.length, " Total initial dictionary entries");
 
 	LETTER_FREQUENCY = util.constructFreqHistogram(COMPACT_KEYS);
-	console.log("constructed letter frequency:", LETTER_FREQUENCY);
+	console.log("constructed letter frequency:");
 
-	LETTER_SHARE = util.constructLetterShareHist(COMPACT_KEYS);
-	console.log("constructed letter share", LETTER_SHARE);;
+	// LETTER_SHARE = util.constructLetterShareHist(COMPACT_KEYS);
+	// console.log("constructed letter share");
 
 	while(COMPACT_KEYS.length > 3) {
 		var solution = solveShh(COMPACT_KEYS, ALL_LETTERS);
@@ -47,7 +44,7 @@ function solveShh(allLetters) {
 	// Bootstrap A*
 	var openSet   = new PriorityQueue(nodeComparator);
 	var closedSet = new Set();
-	var bannedRoots = new Set();
+	var BEST = 8;
 	
 	// Starting node
 	openSet.enq(constructNode(undefined, ''));
@@ -60,6 +57,7 @@ function solveShh(allLetters) {
 		// get the next node, and mark it visited
 		var currentNode = openSet.deq();
 		closedSet.add(currentNode.letters);
+		//console.log("Explored: ", currentNode.utility.toFixed(3), currentNode.letters, currentNode.word);
 
 		// More fun!
 		if(currentNode && currentNode.parent && !currentNode.parent.parent) {
@@ -68,22 +66,14 @@ function solveShh(allLetters) {
 			foundSolutionWithRoot = false;
 		}
 
-		if(currentNode.letters.length === 0) {
+		if(currentNode.letters.length === 0 || currentNode.letters.length < BEST) {
+			BEST = currentNode.letters.length;
 			util.printClarifiedSolution(currentNode, COMPACT_DICT);
 			console.log("Found after searching nodes ", nodesSearched);
-			// return currentNode;
 			foundSolutionWithRoot = true;
 		}
 		nodesSearched++;
-
-		// If it's been awhile since a root change,
-		// and we already found a solution with this root node
-		// force a change
-		// if(nodesSearched > 15000 && foundSolutionWithRoot) {
-		// 	nodesSearched = 0;
-		// 	foundSolutionWithRoot = false;
-		// 	pruneActiveNodes(currentNode, openSet);
-		// }
+		if(nodesSearched % 2000 === 0) console.log((nodesSearched));
 
 		// Construct the next visitable nodes
 		constructAdjacentNodes(currentNode, openSet, closedSet);
@@ -109,7 +99,7 @@ function constructAdjacentNodes(parent, openSet, closedSet) {
 		var nodeLetters = parent.letters.replace(re, '');
 
 		// if it's not a winner, but it's got fewer than 3 letters, it's a loser
-		if(nodeLetters.length < 3 && nodeLetters.length > 0) continue;
+		if(3 >= nodeLetters.length && nodeLetters.length > 0) continue;
 
 		// no vowels, but more than 4 letters, ignore (those aren't real words anyway)
 		if(util.getVowels(nodeLetters) === 0 && nodeLetters.length > 3) {
@@ -120,33 +110,6 @@ function constructAdjacentNodes(parent, openSet, closedSet) {
 		if(closedSet.has(nodeLetters)) continue;
 		openSet.enq(constructNode(parent, word, nodeLetters));
 	}
-}
-
-/* *
- * Potential optimization function - remove all nodes which share
- * the first choice of the current node. 
- */ 
-function pruneActiveNodes(currentNode, openSet){
-	var rootToBan = findRoot(currentNode);
-	var tmpQueue = new PriorityQueue(nodeComparator);
-	var nodesRemoved = 0;
-	openSet.forEach(function(node) {
-		var cRoot = findRoot(node);
-		
-		// careful, compare by reference IS what I want.
-		if(cRoot === rootToBan) {
-			nodesRemoved++;
-			return;
-		}
-
-		tmpQueue.enq(node);
-	});
-	openSet = tmpQueue;
-
-	// Then, splice out the root word
-	var sIndex = COMPACT_KEYS.indexOf(rootToBan.word);
-	console.log("REMOVED NODES", nodesRemoved);
-	console.log("SPLICED OUT", rootToBan.word, sIndex, COMPACT_KEYS.splice(sIndex, 1));
 }
 
 /* *
@@ -207,40 +170,22 @@ function H(remainingLetters, chosenWord) {
 		return 0;
 	}
 
-	// 0-1, 1 means word has the maximum uncommonness per letter
-	var uncommonRating = getUncommonRate(remainingLetters);
-
-	// 0-1, 1 means all consanants 
+	var uncommonRating = getUncommonRate(remainingLetters); 
 	var vowelRatio = getVowelRatio(remainingLetters);
-
-	// 0-1
-	var shareRate = getSharedLetterRate(remainingLetters);
-	//console.log(remainingLetters, shareRate*10000000, vowelRatio, uncommonRating);
+	//var shareRate = getSharedLetterRate(remainingLetters);
 	
-	// h is from 0 to 1. An underestimate of the number of words
-	// before a solution, obviously.
-	var h = ((uncommonRating + vowelRatio) / 2) * remainingLetters.length;
+	var h = (1 - ((vowelRatio + (uncommonRating*10)) / 2)) * remainingLetters.length;
 
 	return Math.max(0, h); // negative edge weight breaks things.
 }
 
 /**
- *  Given a word, give it a rating of how many
- *  vowels to consannats it has. No vowels = 1, all vowels = 0
+ *  Given a word, return the percent of the letters which are
+ *  vowels.
  */
 function getVowelRatio(word) {
 	var vowelCount = util.getVowels(word);
-
-	if(vowelCount === 0) {
-		return 1;
-	}
-
-	if(vowelCount === word.length) {
-		return 0;
-	}
-
-	// Inverse of percent share.
-	return 1 - (vowelCount / word.length);
+	return vowelCount / word.length;
 }
 
 /**
@@ -280,7 +225,7 @@ function getSharedLetterRate(word) {
 		}
 	}
 
-	return share / combosTried;
+	return sharedSum / combosTried;
 } 
 
 /* *
@@ -288,11 +233,6 @@ function getSharedLetterRate(word) {
  * words from COMPACT_KEYS that can still be made.
  */
 function pruneList(remainingLetters) {
-	var memo = MEMOIZED_PRUNE_LIST.get(remainingLetters);
-	if(memo) {
-		return memo;
-	}
-
 	var newList = [];
 	for(var i = 0; i < COMPACT_KEYS.length; i++) {
 		var word = COMPACT_KEYS[i];
@@ -302,6 +242,32 @@ function pruneList(remainingLetters) {
 		}
 	}
 
-	MEMOIZED_PRUNE_LIST.set(remainingLetters, newList);
 	return newList;
+}
+
+/* *
+ * Potential optimization function - remove all nodes which share
+ * the first choice of the current node. 
+ */ 
+function pruneActiveNodes(currentNode, openSet){
+	var rootToBan = findRoot(currentNode);
+	var tmpQueue = new PriorityQueue(nodeComparator);
+	var nodesRemoved = 0;
+	openSet.forEach(function(node) {
+		var cRoot = findRoot(node);
+		
+		// careful, compare by reference IS what I want.
+		if(cRoot === rootToBan) {
+			nodesRemoved++;
+			return;
+		}
+
+		tmpQueue.enq(node);
+	});
+	openSet = tmpQueue;
+
+	// Then, splice out the root word
+	var sIndex = COMPACT_KEYS.indexOf(rootToBan.word);
+	console.log("REMOVED NODES", nodesRemoved);
+	console.log("SPLICED OUT", rootToBan.word, sIndex, COMPACT_KEYS.splice(sIndex, 1));
 }
