@@ -7,6 +7,12 @@ var COMPACT_DICT;
 var COMPACT_KEYS;
 var LETTER_FREQUENCY;
 
+// GLOBAL NON CONSTANTS
+var VOWEL_W;
+var UC_W;
+var WEIGHT_SUM;
+var BANNED_WORDSET = []; // list of lists
+
 // Main entry
 util.loadDict(bootstrapSearch);
 
@@ -21,21 +27,25 @@ function bootstrapSearch(wordList) {
 	LETTER_FREQUENCY = util.constructFreqHistogram(COMPACT_KEYS);
 	console.log("constructed letter frequency:");
 
-	// LETTER_SHARE = util.constructLetterShareHist(COMPACT_KEYS);
-	// console.log("constructed letter share");
+	LETTER_SHARE = util.constructLetterShareHist(COMPACT_KEYS);
+	console.log("constructed letter share", LETTER_SHARE);
 
-	while(COMPACT_KEYS.length > 3) {
+	while(true) {
 		var solution = solveShh(COMPACT_KEYS, ALL_LETTERS);
-		var rootNode = findRoot(solution);
-		var sIndex = COMPACT_KEYS.indexOf(rootNode.word);
-		console.log("SPLICED OUT", sIndex, COMPACT_KEYS.splice(sIndex, 1));
-	}
-	
-}
+		
+		if(solution !== undefined) {
+			//banSolution(solution);
+			var solutionRoot = findRoot(solution);
+			var i = COMPACT_KEYS.indexOf(solutionRoot.word);
+			
+			// until I think of something more clever, banning
+			// the word we most wanted to choose first
+				// seems like a way to find unique solutions.
+			var bannedWord = COMPACT_KEYS.splice(i,1);
+			console.log("BANNED WORD: ", bannedWord);
 
-function findRoot(node) {
-	if(node.parent.parent === undefined) return node;
-	return findRoot(node.parent);
+		}
+	}
 }
 
 function solveShh(allLetters) {
@@ -43,6 +53,12 @@ function solveShh(allLetters) {
 	var openSet   = new PriorityQueue(nodeComparator);
 	var closedSet = new Set();
 	var BEST = 8;
+
+	// Stochastic Params
+	// VOWEL_W = Math.random() * 3;
+	// UC_W = (Math.random() * 5) + 2;
+	// WEIGHT_SUM = VOWEL_W + UC_W;
+	// console.log("STARTING ROUND", "V: " + VOWEL_W, "UC: " + UC_W);
 	
 	// Starting node
 	openSet.enq(constructNode(undefined, ''));
@@ -53,23 +69,36 @@ function solveShh(allLetters) {
 	while(!openSet.isEmpty()) {
 		// get the next node, and mark it visited
 		var currentNode = openSet.deq();
+		
+		// Because there are many was to reach one node, but
+		// we only care about what happens AFTER that node
+		while(closedSet.has(currentNode.letters)){
+			currentNode = openSet.deq();
+		}
 		closedSet.add(currentNode.letters);
-		//console.log("Explored: ", currentNode.utility.toFixed(3), currentNode.letters, currentNode.word);
 
-		if(currentNode.letters.length === 0) {
-			BEST = currentNode.letters.length;
+		//console.log("Explored: ", currentNode.utility.toFixed(3), currentNode.heuristic.toFixed(3), currentNode.letters, currentNode.word);
+		//console.log("Explored: ", (currentNode.utility - .999) * 1000, currentNode.letters);
+
+		if(currentNode.letters.length === 0 && !solutionIsBanned(currentNode)) {
 			util.printClarifiedSolution(currentNode, COMPACT_DICT);
 			console.log("Found after searching nodes ", nodesSearched);
+			//return currentNode;
 		}
-		else if(currentNode.letters.length < 3) {
+		else if(currentNode.letters.length <= BEST) {
+			BEST = currentNode.letters.length;
 			util.printNearWinner(currentNode, COMPACT_DICT);
 		}
 
 		nodesSearched++;
-		if(nodesSearched % 2000 === 0) console.log((nodesSearched));
+		if(nodesSearched % 1000 === 0) console.log((nodesSearched));
+
+		// Give up on these parameters, try something different.
+		//if(nodesSearched % 12000 === 0) return undefined;
 
 		// Construct the next visitable nodes
 		constructAdjacentNodes(currentNode, openSet, closedSet);
+		//dumpOpenSet(openSet);
 	}
 }
 
@@ -90,14 +119,6 @@ function constructAdjacentNodes(parent, openSet, closedSet) {
 		var pattern = "[" + word + "]";
 		var re = new RegExp(pattern, "g");
 		var nodeLetters = parent.letters.replace(re, '');
-
-		// if it's not a winner, but it's got fewer than 3 letters, it's a loser
-		if(3 >= nodeLetters.length && nodeLetters.length > 0) continue;
-
-		// no vowels, but more than 4 letters, ignore (those aren't real words anyway)
-		if(util.getVowels(nodeLetters) === 0 && nodeLetters.length > 3) {
-			continue;
-		}
 
 		// If we've been there, don't go again
 		if(closedSet.has(nodeLetters)) continue;
@@ -134,7 +155,7 @@ function constructNode(parent, chosenWord, lettersPostChoice) {
 	// Utility of a node is it's known cost + it's estimated cost
 	// until the goal.
 	//var utility = cost + heuristic;
-	var utility = heuristic * lettersPostChoice.length;
+	var utility = heuristic;
 
 	// The node!
 	var node = {
@@ -151,7 +172,7 @@ function constructNode(parent, chosenWord, lettersPostChoice) {
 
 // Used by our priority queue to properly value the next node
 function nodeComparator(a, b) {
-	return  b.utility - a.utility;
+	return a.utility - b.utility;
 }
 
 /* *
@@ -161,16 +182,22 @@ function nodeComparator(a, b) {
 function H(remainingLetters, chosenWord) {
 	// If you can win, then win.
 	if(remainingLetters.length === 0) {
-		return 0;
+		return Infinity;
 	}
 
-	var uncommonRating = getUncommonRate(remainingLetters); 
+	var shareRate = getSharedLetterRate(remainingLetters);
+	var uncommonRating = getUncommonRate(remainingLetters);
 	var vowelRatio = getVowelRatio(remainingLetters);
-	//var shareRate = getSharedLetterRate(remainingLetters);
-	
-	var h = (1 - ((vowelRatio + (uncommonRating*3)) / 4));
 
-	return Math.max(0, h); // negative edge weight breaks things.
+	// shareRate is high when letters are common.
+	var h = (shareRate + (uncommonRating / 100) + (vowelRatio / 1000));
+
+	// Use a little randomness. Typical decent h is .001, so spice it
+	// up by adding something between .001 and 0.
+	var epsilon = Math.random() / 1000;
+
+
+	return h + epsilon;
 }
 
 /**
@@ -192,25 +219,30 @@ function getUncommonRate(word) {
 		sum += LETTER_FREQUENCY[word[i]];
 	}
 	
-	return sum;
+	return sum / word.length;
 }
 
 /* *
- * Returns a measure of how many 3 letter combos appear
- * in the valid word list per letter. Values are all less than 1
- * and the closer to 0 we get the more 3 letter combos are shared
- * with word and all the words in COMPLETE_DICT. 
+ * Returns a measure of how many 3 letter combos of word appear
+ * in the valid word list per letter. Values are all between 1 and 0.
  *
- * We scale this to a per combo basis so that we don't simply
- * prefer words with fewer letters.
+ * Bigger values mean word has a greater share of valid 3-letter-perms
  */
 function getSharedLetterRate(word) {
 	var sharedSum = 0;
-	var combosTried = 0
+	var combosTried = 0;
+
+	// Only one ordered permutation of such words.
+	if(word.length === 3) {
+		return LETTER_SHARE[word];
+	}
+	else if(word.length < 3) {
+		return 0;
+	}
+
 	for(i = 0; i < word.length; i++) {
-		for(j = 0; j < word.length; j++){
-			for(k = 0; k < word.length; k++){
-				if(i === j || j === k || i === k) continue;
+		for(j = i+1; j < word.length; j++){
+			for(k = j+1; k < word.length; k++){
 				var joined = word[i] + word[j] + word[k];
 				var share = LETTER_SHARE[joined]
 				sharedSum += share;
@@ -264,4 +296,48 @@ function pruneActiveNodes(currentNode, openSet){
 	var sIndex = COMPACT_KEYS.indexOf(rootToBan.word);
 	console.log("REMOVED NODES", nodesRemoved);
 	console.log("SPLICED OUT", rootToBan.word, sIndex, COMPACT_KEYS.splice(sIndex, 1));
+}
+
+function banSolution(node) {
+	var wList = [];
+	var cur = node;
+	while(cur.parent) {
+		wList.push(cur.word);
+		cur = cur.parent;
+	}
+	BANNED_WORDSET.push(wList);
+	console.log("banned solution: ", wList);
+	return;
+}
+
+function solutionIsBanned(node) {
+	for(var i = 0; i < BANNED_WORDSET.length; i++) {
+		var curBanList = BANNED_WORDSET[i];
+		var cur = node;
+
+		// Check each word in the solution, if we find one
+		// word that is different, it's not banned
+		var banned = true;
+		while(cur.parent) {
+			if(curBanList.indexOf(cur.word) !== -1){
+				banned = false;
+				break;
+			}
+			cur = cur.parent;
+		}
+	}
+
+	return false;
+}
+
+function findRoot(node) {
+	if(node.parent.parent === undefined) return node;
+	return findRoot(node.parent);
+}
+
+function dumpOpenSet(openSet) {
+	while(!openSet.isEmpty()) {
+			var tmp = openSet.deq();
+			console.log(tmp.letters, tmp.word, tmp.utility, tmp.heuristic);
+		}
 }

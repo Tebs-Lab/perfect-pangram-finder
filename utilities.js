@@ -8,7 +8,7 @@ function createWinnableSets(wordList) {
 		if(!allUnique(word)) continue;
 		
 		var sorted = word.split('').sort().join('');
-		if(sorted.length < 3) continue;
+		if(sorted.length === 1) continue;
 
 		if(winners[sorted] === undefined) {
 			winners[sorted] = [word];
@@ -62,9 +62,8 @@ function constructLetterShareHist(validWords) {
 	var totalSum = 0;
 	// Faster than branching?
 	for(var i = 0; i < ALL_LETTERS.length; i++){
-		for(var j = 0; j < ALL_LETTERS.length; j++){
-			for(var k = 0; k < ALL_LETTERS.length; k++){
-				if(i === j || j === k || i === k) continue;
+		for(var j = i+1; j < ALL_LETTERS.length; j++){
+			for(var k = j+1; k < ALL_LETTERS.length; k++){
 				var joined = ALL_LETTERS[i] + ALL_LETTERS[j] + ALL_LETTERS[k];
 				letterShareHist[joined] = 0;
 			}
@@ -76,9 +75,8 @@ function constructLetterShareHist(validWords) {
 	for(var wordIdx = 0; wordIdx < validWords.length; wordIdx++) {
 		var word = validWords[wordIdx];
 		for(i = 0; i < word.length; i++) {
-			for(j = 0; j < word.length; j++){
-				for(k = 0; k < word.length; k++){
-					if(i === j || j === k || i === k) continue;
+			for(j = i+1; j < word.length; j++){
+				for(k = j+1; k < word.length; k++){
 					joined = word[i] + word[j] + word[k];
 					letterShareHist[joined] += 1;
 					totalSum += 1;
@@ -182,14 +180,14 @@ function printClarifiedSolution(node, compactDictionary){
 
 function printNearWinner(node, compactDictionary) {
 	console.log('------------near winner--------------------');
-	console.log(node.letters.length, node.letters);
+	console.log(node.letters.length, node.letters, node.utility.toFixed(5));
 	_traverseNode(node, compactDictionary);
 }
 
 function _traverseNode(node, compactDictionary) {
 	if(node.parent === undefined) return;
 	var realWords = compactDictionary[node.word];
-	console.log(node.word, realWords);
+	console.log(node.word, realWords, node.utility.toFixed(5));
 	_traverseNode(node.parent, compactDictionary);
 }
 
