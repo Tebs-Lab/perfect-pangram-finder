@@ -23,7 +23,12 @@ function createWinnableSets(wordList) {
 	return winners;
 }
 
-function constructHistogram(validWords){
+/* *
+ * Construct an inverted normalized histogram. The values sum to 1
+ * and the value associated with each letter is a measure of how 
+ * infrequently it is used. Higher values mean less use.
+ */ 
+function constructFreqHistogram(validWords){
 	var letterHistogram = {};
 	var totalSum = 0;
 	// Faster than branching?
@@ -55,6 +60,66 @@ function constructHistogram(validWords){
 	return letterHistogram;
 }
 
+/* *
+ * Construct a histogram where the keys are 3 letter combos. Like
+ * regular construct histogram, this is inverted and normalized. The
+ * values sum to one and high values are associated with infrequent
+ * combos.
+ */
+function constructLetterShareHist(validWords) {
+	var letterShareHist = {};
+	var totalSum = 0;
+	// Faster than branching?
+	for(var i = 0; i < ALL_LETTERS.length; i++){
+		for(var j = 0; j < ALL_LETTERS.length; j++){
+			for(var k = 0; k < ALL_LETTERS.length; k++){
+				if(i === j || j === k || i === k) continue;
+				var joined = ALL_LETTERS[i] + ALL_LETTERS[j] + ALL_LETTERS[k];
+				letterShareHist[joined] = 0;
+			}
+		}	
+	}
+
+	// Construct the instances of 3 letters being shared
+	// I am choosing 3 because 
+	for(var wordIdx = 0; wordIdx < validWords.length; wordIdx++) {
+		var word = validWords[wordIdx];
+		for(i = 0; i < word.length; i++) {
+			for(j = 0; j < word.length; j++){
+				for(k = 0; k < word.length; k++){
+					if(i === j || j === k || i === k) continue;
+					joined = word[i] + word[j] + word[k];
+					letterShareHist[joined] += 1;
+					totalSum += 1;
+				}
+			}
+		}
+	}
+
+	// Invert, so uncommon combos are bigger numbers
+	var invertedSum = 0;
+	for(key in letterShareHist){
+		// if it never appeared, act as it it happend 1 time
+		// for the sake of easy math
+		if(letterShareHist[key] === 0) {
+			letterShareHist[key] = totalSum / 1
+			invertedSum += letterShareHist[key]; 
+		}
+		else{
+			letterShareHist[key] = totalSum / letterShareHist[key];
+			invertedSum += letterShareHist[key];
+		}
+
+	}
+	
+	// Normalize
+	for(key in letterShareHist) {
+		letterShareHist[key] /= invertedSum;
+	}
+
+	return letterShareHist;
+}
+
 // Test that letters has enough letters to 
 function checkWord(word, letters) {
 	var memoKey = word + '|' + letters;
@@ -77,7 +142,10 @@ function checkWord(word, letters) {
 
 	// If word has a letter that letters didn't have.
 	for(i = 0; i < word.length; i++) {
-		if(counter[word[i]] !== 1) return false;
+		if(counter[word[i]] !== 1) {
+			MEMOIZED_CHECK_WORD.set(memoKey, false);
+			return false;
+		}
 	}
 
 	MEMOIZED_CHECK_WORD.set(memoKey, true);
@@ -153,7 +221,8 @@ function _traverseNode(node, compactDictionary) {
 
 var exporter = {
 	createWinnableSets: createWinnableSets,
-	constructHistogram: constructHistogram,
+	constructFreqHistogram: constructFreqHistogram,
+	constructLetterShareHist: constructLetterShareHist,
 	checkWord: checkWord,
 	loadDict: loadDict,
 	getVowels: getVowels,

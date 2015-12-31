@@ -23,8 +23,19 @@ function bootstrapSearch(wordList) {
 	COMPACT_KEYS = Object.keys(COMPACT_DICT);
 	console.log(COMPACT_KEYS.length, " Total initial dictionary entries");
 
-	LETTER_FREQUENCY = util.constructHistogram(COMPACT_KEYS);
+	LETTER_FREQUENCY = util.constructFreqHistogram(COMPACT_KEYS);
 	console.log("constructed letter frequency:", LETTER_FREQUENCY);
+
+	LETTER_SHARE = util.constructLetterShareHist(COMPACT_KEYS);
+	console.log("constructed letter share", LETTER_SHARE);
+	// console.log(getSharedLetterRate(ALL_LETTERS));
+	// console.log(getSharedLetterRate("ADELSP"));
+	// console.log(getSharedLetterRate("ADE"));
+	// console.log(getSharedLetterRate('CWM'));
+
+	console.log(getVowelRatio("AAAB"));
+	console.log(getVowelRatio("AABB"));
+	console.log(getVowelRatio("ABBB"));
 
 	while(COMPACT_KEYS.length > 3) {
 		var solution = solveShh(COMPACT_KEYS, ALL_LETTERS);
@@ -51,6 +62,7 @@ function solveShh(allLetters) {
 
 	// Because it's possible to search too hard!
 	var nodesSearched = 0;
+	var foundSolutionWithRoot = false;
 
 	while(!openSet.isEmpty()) {
 		// get the next node, and mark it visited
@@ -61,39 +73,24 @@ function solveShh(allLetters) {
 		if(currentNode && currentNode.parent && !currentNode.parent.parent) {
 			console.log("changed root after", nodesSearched, findRoot(currentNode).word);
 			nodesSearched = 0;
+			foundSolutionWithRoot = false;
 		}
 
 		if(currentNode.letters.length === 0) {
 			util.printClarifiedSolution(currentNode, COMPACT_DICT);
 			console.log("Found after searching nodes ", nodesSearched);
 			// return currentNode;
+			foundSolutionWithRoot = true;
 		}
 		nodesSearched++;
 
-		// If it's been awhile since a root change, force one
-		// if(nodesSearched > 5500) {
+		// If it's been awhile since a root change,
+		// and we already found a solution with this root node
+		// force a change
+		// if(nodesSearched > 15000 && foundSolutionWithRoot) {
 		// 	nodesSearched = 0;
-
-		// 	var rootToBan = findRoot(currentNode);
-		// 	var tmpQueue = new PriorityQueue(nodeComparator);
-		// 	var nodesRemoved = 0;
-		// 	openSet.forEach(function(node) {
-		// 		var cRoot = findRoot(node);
-				
-		// 		// careful, compare by reference IS what I want.
-		// 		if(cRoot === rootToBan) {
-		// 			nodesRemoved++;
-		// 			return;
-		// 		}
-
-		// 		tmpQueue.enq(node);
-		// 	});
-		// 	openSet = tmpQueue;
-
-		// 	// Then, splice out the root word
-		// 	var sIndex = COMPACT_KEYS.indexOf(rootToBan.word);
-		// 	console.log("REMOVED NODES", nodesRemoved);
-		// 	console.log("SPLICED OUT", rootToBan.word, sIndex, COMPACT_KEYS.splice(sIndex, 1));
+		// 	foundSolutionWithRoot = false;
+		// 	pruneActiveNodes(currentNode, openSet);
 		// }
 
 		// Construct the next visitable nodes
@@ -131,6 +128,33 @@ function constructAdjacentNodes(parent, openSet, closedSet) {
 		if(closedSet.has(nodeLetters)) continue;
 		openSet.enq(constructNode(parent, word, nodeLetters));
 	}
+}
+
+/* *
+ * Potential optimization function - remove all nodes which share
+ * the first choice of the current node. 
+ */ 
+function pruneActiveNodes(currentNode, openSet){
+	var rootToBan = findRoot(currentNode);
+	var tmpQueue = new PriorityQueue(nodeComparator);
+	var nodesRemoved = 0;
+	openSet.forEach(function(node) {
+		var cRoot = findRoot(node);
+		
+		// careful, compare by reference IS what I want.
+		if(cRoot === rootToBan) {
+			nodesRemoved++;
+			return;
+		}
+
+		tmpQueue.enq(node);
+	});
+	openSet = tmpQueue;
+
+	// Then, splice out the root word
+	var sIndex = COMPACT_KEYS.indexOf(rootToBan.word);
+	console.log("REMOVED NODES", nodesRemoved);
+	console.log("SPLICED OUT", rootToBan.word, sIndex, COMPACT_KEYS.splice(sIndex, 1));
 }
 
 /* *
@@ -196,6 +220,10 @@ function H(remainingLetters, chosenWord) {
 
 	// 0-1, 1 means all consanants 
 	var vowelRatio = getVowelRatio(remainingLetters);
+
+	// 0-1
+	var shareRate = getSharedLetterRate(remainingLetters);
+	console.log(remainingLetters, shareRate*10000000, vowelRatio, uncommonRating);
 	
 	// h is from 0 to 1. An underestimate of the number of words
 	// before a solution, obviously.
@@ -206,22 +234,25 @@ function H(remainingLetters, chosenWord) {
 
 /**
  *  Given a word, give it a rating of how many
- *  vowels to consannats it has. 
- *  No consanants = 1, all consanats = 0
+ *  vowels to consannats it has. No vowels = 1, all vowels = 0
  */
 function getVowelRatio(word) {
 	var vowelCount = util.getVowels(word);
-	var consCount = word.length - vowelCount;
 
 	if(vowelCount === 0) {
 		return 1;
 	}
-	return consCount / vowelCount;
+
+	if(vowelCount === word.length) {
+		return 0;
+	}
+
+	// Inverse of percent share.
+	return 1 - (vowelCount / word.length);
 }
 
 /**
- *  Given a word, give it an uncommonnness rating.
- *  the basis for this rating is the sum of 
+ *  Given a word, give it an uncommonnness rating per letter.
  */
 function getUncommonRate(word) {
 	// For letters in remaining letters, get the sum
@@ -230,8 +261,35 @@ function getUncommonRate(word) {
 		sum += LETTER_FREQUENCY[word[i]];
 	}
 	
-	return sum;
+	return sum / word.length;
 }
+
+/* *
+ * Returns a measure of how many 3 letter combos appear
+ * in the valid word list per letter. Values are all less than 1
+ * and the closer to 0 we get the more 3 letter combos are shared
+ * with word and all the words in COMPLETE_DICT. 
+ *
+ * We scale this to a per combo basis so that we don't simply
+ * prefer words with fewer letters.
+ */
+function getSharedLetterRate(word) {
+	var sharedSum = 0;
+	var combosTried = 0
+	for(i = 0; i < word.length; i++) {
+		for(j = 0; j < word.length; j++){
+			for(k = 0; k < word.length; k++){
+				if(i === j || j === k || i === k) continue;
+				var joined = word[i] + word[j] + word[k];
+				var share = LETTER_SHARE[joined]
+				sharedSum += share;
+				combosTried += 1;
+			}
+		}
+	}
+
+	return share / combosTried;
+} 
 
 /* *
  * Given a set of letters remaining, return a list of 
