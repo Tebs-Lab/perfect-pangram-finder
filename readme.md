@@ -31,6 +31,32 @@ The words on the left are sorted letter combinations, the words in each list are
 
 Issues: Currently the program uses a hardcoded path to it's dictionary. This path is located in utilities.js, in the loadDict function. Specifically it uses `/usr/share/dict/words` and expects a uniqe word per line. 
 
+# Points of Interest
+
+This is an NP hard problem, so getting to a solution involved more than just brute force. These are the things that helped the most:
+
+## Compressing the State Space
+
+I took a dictionary and transformed all the words into their sorted letter set. For example, this way "BAD" and "DAB" are both stored as "ABD". The compressed dictionary I used took ~250,000 words down to ~31,000 unique letter combos which is a massive win. 
+
+Use the same fact to understand that each node in the graph will be uniquely identified by the ordered remaining letters, which helps me to not explore previously seen nodes. 
+
+## Heuristics
+
+### Vowel Ratio
+
+When I examine the letters remaining after picking a word, I compute #vowels / #unusedLetters. The motivation for this is pretty simple - having more vowels remaining makes it more likely that I'll be able select words using those letters.
+
+### Letter Commonality
+
+When I read in the initial word set, I create a dictionary for each letter in the alphabet and count the number of times each letter appears across all the words. I used this dictionary to prefer nodes where the remaining letters had more common letters.
+
+### Shared 3-Letter Combos
+
+This is similar to the letter commonality heuristic. Again, when processing the initial word set, I created a dictionary which contains all 3-letter combinations which can be made with that word. So for example the letter-set ABC has only one valid combo, but ABCD has [ABC, ABD, BCD]. Remember, I only care about sorted letter-sets after having compressed the initial wordset. 
+
+So in the end, must like the letter commonality measure, I have a dictionary mapping all 26 choose 3 possible letter sets mapped to the number of times those combos appear across my wordset. Then I use this to prefer searching nodes where the remaining letters have more valid 3-letter combos. 
+
 ## Motivation
 
 I played a game called "Shh" (which I highly recommend) recently (at the time of this writing). Shh is a collaborative game wherein players act as a team to create perfect pangrams one letter at a time. 
