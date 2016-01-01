@@ -51,7 +51,8 @@ function solveShh(allLetters) {
 		while(closedSet.has(currentNode.letters)){
 			currentNode = openSet.deq();
 		}
-		closedSet.add(currentNode.letters);
+
+		if(currentNode.letters !== '') closedSet.add(currentNode.letters);
 
 		// Check for victory && near victories
 		if(currentNode.letters.length === 0) {
@@ -88,7 +89,8 @@ function constructAdjacentNodes(parent, openSet, closedSet) {
 		var re = new RegExp(pattern, "g");
 		var nodeLetters = parent.letters.replace(re, '');
 
-		// If we've been there, don't go again
+		// If we've been there, don't go again.
+		// Unless it's another perfect pangram of course
 		if(closedSet.has(nodeLetters)) continue;
 		openSet.enq(constructNode(parent, word, nodeLetters));
 	}
@@ -122,11 +124,11 @@ function constructNode(parent, chosenWord, lettersPostChoice) {
 			parent: undefined,
 			word: '',
 			letters: util.ALL_LETTERS,
-			utility: Infinity
+			utility: 0
 		}
 	}
 
-	var utility = heuristics.getHeuristic(lettersPostChoice, chosenWord);
+	var utility = heuristics.getHeuristic(lettersPostChoice);
 
 	// The node!
 	var node = {
