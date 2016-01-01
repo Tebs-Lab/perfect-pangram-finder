@@ -61,7 +61,7 @@ So in the end, must like the letter commonality measure, I have a dictionary map
 
 I played a game called "Shh" (which I highly recommend) recently (at the time of this writing). Shh is a collaborative game wherein players act as a team to create perfect pangrams one letter at a time. 
 
-After playing Shh and losing terribly several times in a row, I (naively) figured I could write a program which could generate all of the winning combinations. I started with a simple recursive program to generate all possible letter combinations and check each one for being a pangram. Unfortunately for me there are 26! ~= 71million uniqe ways to order 26 letters. 
+After playing Shh and losing terribly several times in a row, I (naively) figured I could write a program which could generate all of the winning combinations. I started with a simple recursive program to generate all possible letter combinations and check each one for being a pangram. Unfortunately for me there are 26! ~= 4.0329146e26 uniqe ways to order 26 letters. 
 
 Eventually I landed on a method roughly based on A* search. I added some very simplistic randomness in order to generate pangrams that didn't exactly fit my heursitic, as well as to avoid the local maximum problem (since my heuristic is very similar to hill climbing).
 
