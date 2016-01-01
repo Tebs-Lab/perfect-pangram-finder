@@ -34,7 +34,6 @@ function solveShh(allLetters) {
 	// Bootstrap A*
 	var openSet   = new PriorityQueue(nodeComparator);
 	var closedSet = new Set();
-	var BEST = 8;
 	
 	// Starting node
 	openSet.enq(constructNode(undefined, ''));
@@ -57,11 +56,6 @@ function solveShh(allLetters) {
 		// Check for victory && near victories
 		if(currentNode.letters.length === 0) {
 			util.printClarifiedSolution(currentNode, COMPACT_DICT);
-			console.log("Found after searching nodes ", nodesSearched);
-		}
-		else if(currentNode.letters.length <= BEST) {
-			BEST = currentNode.letters.length;
-			util.printNearWinner(currentNode, COMPACT_DICT);
 			console.log("Found after searching nodes ", nodesSearched);
 		}
 		nodesSearched++;
