@@ -11,7 +11,7 @@ function setLetterFrequency(letterFrequency) {
 }
 
 function setCompactDict(compactDict) {
-	COMPACT_DICT = COMPACT_DICT;
+	COMPACT_DICT = compactDict;
 }
 
 /* *
