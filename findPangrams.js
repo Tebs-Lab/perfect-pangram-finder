@@ -45,15 +45,16 @@ function findPangrams(allLetters) {
 		// get the next node, and mark it visited
 		var currentNode = openSet.deq();
 		
-		// Because there are many was to reach one node, but
+		// Because there are many ways to reach one node, but
 		// we only care about what happens AFTER that node
 		while(closedSet.has(currentNode.letters)){
 			currentNode = openSet.deq();
 		}
 
+		// We're searching for many winning nodes, so never close it
 		if(currentNode.letters !== '') closedSet.add(currentNode.letters);
 
-		// Check for victory && near victories
+		// Check for victory
 		if(currentNode.letters.length === 0) {
 			util.printClarifiedSolution(currentNode, COMPACT_DICT);
 			console.log("Found after searching nodes ", nodesSearched);
