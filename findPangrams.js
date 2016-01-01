@@ -27,9 +27,6 @@ function bootstrapSearch(wordList) {
 	heuristics.setLetterShare(LETTER_SHARE);
 	console.log("constructed letter share");
 
-	console.log(heuristics.getHeuristic("DER"));
-	return
-
 	var solution = solveShh(COMPACT_KEYS, util.ALL_LETTERS);
 }
 
