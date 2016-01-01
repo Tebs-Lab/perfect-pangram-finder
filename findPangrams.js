@@ -27,10 +27,10 @@ function bootstrapSearch(wordList) {
 	heuristics.setLetterShare(LETTER_SHARE);
 	console.log("constructed letter share");
 
-	var solution = solveShh(COMPACT_KEYS, util.ALL_LETTERS);
+	var solution = findPangrams(COMPACT_KEYS, util.ALL_LETTERS);
 }
 
-function solveShh(allLetters) {
+function findPangrams(allLetters) {
 	// Bootstrap A*
 	var openSet   = new PriorityQueue(nodeComparator);
 	var closedSet = new Set();
