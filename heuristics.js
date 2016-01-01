@@ -24,7 +24,7 @@ function getHeuristic(remainingLetters) {
 		return Infinity;
 	}
 	if(COMPACT_DICT[remainingLetters]) {
-		return Infinity;
+		return 1;
 	}
 
 	var shareRate = getSharedLetterRate(remainingLetters);
