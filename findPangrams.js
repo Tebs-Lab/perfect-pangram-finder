@@ -16,6 +16,7 @@ function bootstrapSearch(wordList) {
 	console.log("created winnable sets");
 
 	COMPACT_KEYS = Object.keys(COMPACT_DICT);
+	heuristics.setCompactDict(COMPACT_DICT);
 	console.log(COMPACT_KEYS.length, " Total initial dictionary entries");
 
 	LETTER_FREQUENCY = util.constructFreqHistogram(COMPACT_KEYS);
@@ -25,6 +26,9 @@ function bootstrapSearch(wordList) {
 	LETTER_SHARE = util.constructLetterShareHist(COMPACT_KEYS);
 	heuristics.setLetterShare(LETTER_SHARE);
 	console.log("constructed letter share");
+
+	console.log(heuristics.getHeuristic("DER"));
+	return
 
 	var solution = solveShh(COMPACT_KEYS, util.ALL_LETTERS);
 }

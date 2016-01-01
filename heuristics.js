@@ -1,5 +1,6 @@
 var LETTER_FREQUENCY;
 var LETTER_SHARE;
+var COMPACT_DICT;
 
 function setLetterShare(letterShare) {
 	LETTER_SHARE = letterShare;
@@ -9,13 +10,20 @@ function setLetterFrequency(letterFrequency) {
 	LETTER_FREQUENCY = letterFrequency;
 }
 
+function setCompactDict(compactDict) {
+	COMPACT_DICT = COMPACT_DICT;
+}
+
 /* *
- * Return a heuristic value which underestimates the cost of 
- * finding a solution after choosing chosenWord. 
+ * Return a heuristic value which estimates how likely a node is
+ * to yield a solution 
  */
-function getHeuristic(remainingLetters, chosenWord) {
+function getHeuristic(remainingLetters) {
 	// If you can win, then win.
 	if(remainingLetters.length === 0) {
+		return Infinity;
+	}
+	if(COMPACT_DICT[remainingLetters]) {
 		return Infinity;
 	}
 
@@ -101,5 +109,6 @@ module.exports = {
 	getSharedLetterRate: getSharedLetterRate,
 	getVowels: getVowels,
 	setLetterFrequency: setLetterFrequency,
-	setLetterShare: setLetterShare
+	setLetterShare: setLetterShare,
+	setCompactDict: setCompactDict
 }
