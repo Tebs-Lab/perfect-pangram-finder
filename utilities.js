@@ -1,5 +1,38 @@
 var ALL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
+/* *
+ * Read the dictionary file (hard coded to the OSX spell check list
+ * at /usr/share/dict/words) and return an array with an entry for 
+ * each line in that file.
+ */
+function loadDict(callback) {
+  var results = [];
+  var rl = require('readline').createInterface({
+    input: require('fs').createReadStream('/usr/share/dict/words')
+  });
+
+
+  // for every new line, if it matches the regex, add it to an array
+  // this is ugly regex :)
+  rl.on('line', function (line) {
+    results.push(line.toUpperCase());
+  });
+
+
+  // readline emits a close event when the file is read.
+  rl.on('close', function(){
+  	callback(results);
+  });
+}
+
+/* *
+ * Create a compact version of the dictionary, such that 
+ * each key is an ordered set of letters which makeup that word
+ * and the values are a list of all the words which can be
+ * constructed from those letters, for example:
+ *
+ * ABD: ['BAD', 'DAB']
+ */
 function createWinnableSets(wordList) {
 	var winners = {};
 	for(i in wordList) {
@@ -71,7 +104,6 @@ function constructLetterShareHist(validWords) {
 	}
 
 	// Construct the instances of 3 letters being shared
-	// I am choosing 3 because 
 	for(var wordIdx = 0; wordIdx < validWords.length; wordIdx++) {
 		var word = validWords[wordIdx];
 		for(i = 0; i < word.length; i++) {
@@ -93,7 +125,50 @@ function constructLetterShareHist(validWords) {
 	return letterShareHist;
 }
 
-// Test that letters has enough letters to 
+/* *
+ * Return a dictionary with the number of times a given character
+ * appears in the string. For Example:
+ * ABCC yields {A:1, B:1, C:2}
+ */
+function countCharacters(input){
+	var characterCounts = {};
+
+	for(var i = 0; i < input.length; i++){
+		var c = input[i];
+
+		if(characterCounts[c] === undefined) {
+			characterCounts[c] = 1;
+		}
+		else {
+			characterCounts[c] += 1;
+		}
+	}
+
+	return characterCounts;
+}
+
+/* *
+ * Return true if input (a string) contains at most one 
+ * copy of a given letter. False otherwise. 
+ */
+function allUnique(input) {
+	var characterCounts = countCharacters(input);
+ 
+	for(character in characterCounts){
+		if(characterCounts[character] !== 1){
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/* *
+ * Given a word and some letters, return true if word contains 
+ * only characters which appear in letters. This function does
+ * assume that words and letters only contain 1 copy of any 
+ * character. IE allUniqe(word) && allUnique(letters) === true
+ */
 function checkWord(word, letters) {
 	if(letters.length < word.length) {
 		return false;
@@ -118,86 +193,38 @@ function checkWord(word, letters) {
 	return true;
 }
 
-function loadDict(callback) {
-  var results = [];
-  var rl = require('readline').createInterface({
-    input: require('fs').createReadStream('/usr/share/dict/words')
-  });
-
-
-  // for every new line, if it matches the regex, add it to an array
-  // this is ugly regex :)
-  rl.on('line', function (line) {
-    results.push(line.toUpperCase());
-  });
-
-
-  // readline emits a close event when the file is read.
-  rl.on('close', function(){
-  	callback(results);
-  });
-}
-
-function getVowels(str) {
-  var m = str.match(/[aeiouy]/gi);
-  return m === null ? 0 : m.length;
-}
-
-function countCharacters(input){
-	var characterCounts = {};
-
-	for(var i = 0; i < input.length; i++){
-		var c = input[i];
-
-		if(characterCounts[c] === undefined) {
-			characterCounts[c] = 1;
-		}
-		else {
-			characterCounts[c] += 1;
-		}
-	}
-
-	return characterCounts;
-}
-
-function allUnique(input) {
-	var characterCounts = countCharacters(input);
- 
-	for(character in characterCounts){
-		if(characterCounts[character] !== 1){
-			return false;
-		}
-	}
-
-	return true;
-}
-
 function printClarifiedSolution(node, compactDictionary){
 	console.log("=================WINNER=====================");
 	console.log(node.letters.length, node.letters);
-	_traverseNode(node, compactDictionary);
+	_printNodeTree(node, compactDictionary);
 }
 
 function printNearWinner(node, compactDictionary) {
 	console.log('------------near winner--------------------');
 	console.log(node.letters.length, node.letters, node.utility.toFixed(5));
-	_traverseNode(node, compactDictionary);
+	_printNodeTree(node, compactDictionary);
 }
 
-function _traverseNode(node, compactDictionary) {
+/* *
+ * Given a node and a compactDictionary (created by createWinnableSets)
+ * print the words chosen by the traversal of node's parents.
+ */
+function _printNodeTree(node, compactDictionary) {
 	if(node.parent === undefined) return;
 	var realWords = compactDictionary[node.word];
 	console.log(node.word, realWords, node.utility.toFixed(5));
-	_traverseNode(node.parent, compactDictionary);
+	_printNodeTree(node.parent, compactDictionary);
 }
 
+// Is there a better way to do this in Node if some of these
+// functions must be used inside this file as well as exported?
 var exporter = {
+	ALL_LETTERS: ALL_LETTERS,
 	createWinnableSets: createWinnableSets,
 	constructFreqHistogram: constructFreqHistogram,
 	constructLetterShareHist: constructLetterShareHist,
 	checkWord: checkWord,
 	loadDict: loadDict,
-	getVowels: getVowels,
 	countCharacters: countCharacters,
 	allUnique: allUnique,
 	printClarifiedSolution: printClarifiedSolution,

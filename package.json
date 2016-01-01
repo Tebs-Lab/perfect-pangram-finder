@@ -1,0 +1,15 @@
+{
+  "name": "perfect-pangram-finder",
+  "version": "0.1.0",
+  "description": "A program meant to find perfect pangrams",
+  "main": "findPangrams.js",
+  "dependencies": {
+    "priorityqueuejs": "^1.0.0",
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Tyler Bettilyon",
+  "license": "MIT"
+}
