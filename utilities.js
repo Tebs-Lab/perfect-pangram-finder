@@ -193,27 +193,41 @@ function checkWord(word, letters) {
 	return true;
 }
 
-function printClarifiedSolution(node, compactDictionary){
-	console.log("=================WINNER=====================");
-	console.log(node.letters.length, node.letters);
-	_printNodeTree(node, compactDictionary);
+function printClarifiedSolution(node, nodesSearched, CONFIG) {
+	if(CONFIG.VERBOSE) _printClarifiedSolutionVerbose(node, nodesSearched, CONFIG.COMPACT_DICT);
+	else _printClarifiedSolution(node, CONFIG.COMPACT_DICT);
 }
 
-function printNearWinner(node, compactDictionary) {
-	console.log('------------near winner--------------------');
-	console.log(node.letters.length, node.letters, node.utility.toFixed(5));
-	_printNodeTree(node, compactDictionary);
-}
+function _printClarifiedSolution(node, compactDictionary) {
+	var firstWords = [];
+	var nodeItr = node;
+	
+	while(nodeItr.parent) {
+		var realWords = compactDictionary[nodeItr.word];
+		firstWords.push(realWords[0]);
+		nodeItr = nodeItr.parent;
+	}
 
-/* *
- * Given a node and a compactDictionary (created by createWinnableSets)
- * print the words chosen by the traversal of node's parents.
+	console.log(firstWords.join(", ") + ';');
+
+}
+/* * 
+ * Print a chatty message with nodes in the order they are chosen, 
+ * as well as heuristic values for each node.
  */
-function _printNodeTree(node, compactDictionary) {
-	if(node.parent === undefined) return;
-	var realWords = compactDictionary[node.word];
-	console.log(node.word, realWords, node.utility.toFixed(5));
-	_printNodeTree(node.parent, compactDictionary);
+function _printClarifiedSolutionVerbose(node, nodesSearched, compactDictionary){
+	console.log("\nSOLUTION: ");
+	console.log(`At: ${nodesSearched}`);
+	console.log("---------------");
+	_printClarifiedSolution(node, compactDictionary);
+	console.log(`remaining letters:\n  ${node.letters.length}, ${node.letters}\n`);	
+	
+	var nodeItr = node;
+	while(nodeItr.parent) {
+		var realWords = compactDictionary[nodeItr.word];
+		console.log(`${nodeItr.word}: ${realWords}, ${nodeItr.utility.toFixed(5)}`);
+		nodeItr = nodeItr.parent;
+	}
 }
 
 // Is there a better way to do this in Node if some of these
@@ -227,8 +241,7 @@ var exporter = {
 	loadDict: loadDict,
 	countCharacters: countCharacters,
 	allUnique: allUnique,
-	printClarifiedSolution: printClarifiedSolution,
-	printNearWinner: printNearWinner
+	printClarifiedSolution: printClarifiedSolution
 };
 
 module.exports = exporter;

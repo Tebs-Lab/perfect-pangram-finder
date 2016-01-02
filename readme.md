@@ -11,23 +11,40 @@ Clone, then:
 
 ```
 npm install
-node findPangrams.js
+node findPangrams.js [0-26] [v]
 ```
 
-The program will simply output text to your console each time the algorithm encouters a new perfect pangram. Sample output:
+The program will simply output text to your console each time the algorithm encouters a new perfect pangram. 
+
+### Options
+__Match length__ 0-26 defines the match length. 0 means "only perfect pangrams", 1 means perfect pangrams as well as near-perfect near-pangrams that do not use 1 of the 26 letters; 26 will print on every explored node.
+
+__Verbose__ v the program to verbose mode. 
+
+Standard output is compatible with CSV:
 
 ```
-=================WINNER=====================
-MUV [ 'VUM' ] Infinity
-DEZ [ 'ZED' ] 1.00000
-AGLRSW [ 'GRAWLS' ] 0.00193
-HOPQ [ 'QOPH' ] 0.00204
-CKT [ 'TCK' ] 0.00195
-BFI [ 'FIB' ] 0.00192
-JNXY [ 'JYNX', 'JYNX' ] 0.00194
+SH, PLY, TD, FRIZ, JACK, QUNG, WOMB, VEX;
 ```
 
-The words on the left are sorted letter combinations, the words in each list are the valid words (according to the input dictionary) which can be spelled using those letters. The number values are the heuristic values associated with the node at which a particular word was selected (roudned to 5 decimals).
+Verbose output gives the number of nodes explored, and the path from root that was explored to find a solution. At each node of exploration you see the letter set which was chosen, and the real English words associated with that set. Finally, on the right you see the heuristic value associated with those choices:
+
+```
+SOLUTION:
+At: 1219
+---------------
+PLY, TD, FRIZ, JACK, QUNG, WOMB, VEX;
+remaining letters:
+  2, SH
+
+LPY: PLY, 1.00000
+DT: TD, 1.00000
+FIRZ: FRIZ, 0.00217
+ACJK: JACK,JACK, 0.00210
+GNQU: QUNG, 0.00201
+BMOW: WOMB, 0.00199
+EVX: VEX, 0.00197
+```
 
 Issues: Currently the program uses a hardcoded path to it's dictionary. This path is located in utilities.js, in the loadDict function. Specifically it uses `/usr/share/dict/words` and expects a uniqe word per line. 
 
