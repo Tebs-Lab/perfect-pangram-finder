@@ -4,7 +4,7 @@
   "description": "A program meant to find perfect pangrams",
   "main": "findPangrams.js",
   "dependencies": {
-    "priorityqueuejs": "^1.0.0",
+    "priorityqueuejs": "^1.0.0"
   },
   "devDependencies": {},
   "scripts": {
