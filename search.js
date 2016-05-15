@@ -1,3 +1,4 @@
+"use strict"
 var util = require('./utilities');
 var heuristics = require('./heuristics');
 var PriorityQueue = require('priorityqueuejs');
@@ -9,8 +10,8 @@ module.exports = {
 // GLOBALS
 var CONFIG;
 
-/* * 
- * Search for pangrams. 
+/* *
+ * Search for pangrams.
  */
 function search(allLetters, _CONFIG) {
 	// Bootstrap A*
@@ -28,7 +29,7 @@ function search(allLetters, _CONFIG) {
 
 	while(!openSet.isEmpty()) {
 		var currentNode = openSet.deq();
-		
+
 		// Because there are many ways to reach one node, but
 		// we only care about what happens AFTER that node
 		while(closedSet.has(currentNode.letters)){
@@ -48,8 +49,8 @@ function search(allLetters, _CONFIG) {
 
 		if(CONFIG.VERBOSE && nodesSearched % 1000 === 0) {
 			console.log(`--Explored nodes: ${nodesSearched}!`);
-         }
-         nodesSearched += 1;
+    }
+    nodesSearched += 1;
 	}
 }
 
@@ -58,7 +59,7 @@ function search(allLetters, _CONFIG) {
  *
  * Given a set of letters (which uniquely identifies a node)
  * construct the set of open adjacent nodes. Using the parameters
- * (which are references) 
+ * (which are references)
  */
 function constructAdjacentNodes(parent, openSet, closedSet) {
 	// Get the list of available words
@@ -79,7 +80,7 @@ function constructAdjacentNodes(parent, openSet, closedSet) {
 }
 
 /* *
- * Given a set of letters remaining, return a list of 
+ * Given a set of letters remaining, return a list of
  * words from COMPACT_KEYS that can still be made.
  */
 function pruneList(remainingLetters) {
@@ -133,7 +134,7 @@ function nodeComparator(a, b) {
 /* *
  * Given a node representing a solution, add that list of words to
  * the list of known solutions.
- */ 
+ */
 function banSolution(node) {
 	var wList = [];
 	var cur = node;
@@ -166,8 +167,8 @@ function solutionIsBanned(node) {
 		}
 		// After each word chain, we'll know a word might be banned
 		if(allWordsMatch){
-			return allWordsMatch;		
-		} 
+			return allWordsMatch;
+		}
 	}
 
 	return false;

@@ -1,3 +1,4 @@
+"use strict"
 var LETTER_FREQUENCY;
 var LETTER_SHARE;
 var COMPACT_DICT;
@@ -16,7 +17,7 @@ function setCompactDict(compactDict) {
 
 /* *
  * Return a heuristic value which estimates how likely a node is
- * to yield a solution 
+ * to yield a solution
  */
 function getHeuristic(remainingLetters) {
 	// If you can win, then win.
@@ -60,7 +61,7 @@ function getUncommonRate(word) {
 	for(i = 0; i < word.length; i++) {
 		sum += LETTER_FREQUENCY[word[i]];
 	}
-	
+
 	return sum / word.length;
 }
 
@@ -94,7 +95,7 @@ function getSharedLetterRate(word) {
 	}
 
 	return sharedSum / combosTried;
-} 
+}
 
 // Return the number of vowels in the given string
 function getVowels(str) {

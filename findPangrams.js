@@ -1,3 +1,4 @@
+"use strict"
 var search = require('./search');
 var util = require('./utilities');
 
@@ -22,16 +23,16 @@ function bootstrapSearch(wordList) {
 	// GLOBAL CONSTANTS
 	var MATCH_LENGTH = parseInt(process.argv[2]); // TODO: better argument handling.
 	if(!MATCH_LENGTH) MATCH_LENGTH = 0;
-	
+
 	var CONFIG = {
-		// Input Dictionary 
+		// Input Dictionary
 		COMPACT_DICT: COMPACT_DICT,
 		COMPACT_KEYS: COMPACT_KEYS,
-		
+
 		// Dictionary Stats
 		LETTER_FREQUENCY: LETTER_FREQUENCY,
 		LETTER_SHARE: LETTER_SHARE,
-		
+
 		// Printing
 		MATCH_LENGTH: MATCH_LENGTH,
 		VERBOSE: process.argv.indexOf('v') !== -1,
@@ -43,4 +44,3 @@ function bootstrapSearch(wordList) {
 	console.log(CONFIG.MATCH_LENGTH, CONFIG.VERBOSE)
 	var solution = search.search(COMPACT_KEYS, CONFIG);
 }
-

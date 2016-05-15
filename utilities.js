@@ -1,8 +1,9 @@
+"use strict"
 var ALL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 /* *
  * Read the dictionary file (hard coded to the OSX spell check list
- * at /usr/share/dict/words) and return an array with an entry for 
+ * at /usr/share/dict/words) and return an array with an entry for
  * each line in that file.
  */
 function loadDict(callback) {
@@ -26,7 +27,7 @@ function loadDict(callback) {
 }
 
 /* *
- * Create a compact version of the dictionary, such that 
+ * Create a compact version of the dictionary, such that
  * each key is an ordered set of letters which makeup that word
  * and the values are a list of all the words which can be
  * constructed from those letters, for example:
@@ -37,9 +38,9 @@ function createWinnableSets(wordList) {
 	var winners = {};
 	for(i in wordList) {
 		var word = wordList[i];
-		
+
 		if(!allUnique(word)) continue;
-		
+
 		var sorted = word.split('').sort().join('');
 		if(sorted.length === 1) continue;
 
@@ -47,18 +48,18 @@ function createWinnableSets(wordList) {
 			winners[sorted] = [word];
 		}
 		else {
-			winners[sorted].push(word);	
+			winners[sorted].push(word);
 		}
-		
+
 	}
 	return winners;
 }
 
 /* *
  * Construct an inverted normalized histogram. The values sum to 1
- * and the value associated with each letter is a measure of how 
+ * and the value associated with each letter is a measure of how
  * infrequently it is used. Higher values mean less use.
- */ 
+ */
 function constructFreqHistogram(validWords){
 	var letterHistogram = {};
 	var totalSum = 0;
@@ -100,7 +101,7 @@ function constructLetterShareHist(validWords) {
 				var joined = ALL_LETTERS[i] + ALL_LETTERS[j] + ALL_LETTERS[k];
 				letterShareHist[joined] = 0;
 			}
-		}	
+		}
 	}
 
 	// Construct the instances of 3 letters being shared
@@ -121,7 +122,7 @@ function constructLetterShareHist(validWords) {
 	for(key in letterShareHist){
 		letterShareHist[key] = letterShareHist[key] / totalSum;
 	}
-	
+
 	return letterShareHist;
 }
 
@@ -148,12 +149,12 @@ function countCharacters(input){
 }
 
 /* *
- * Return true if input (a string) contains at most one 
- * copy of a given letter. False otherwise. 
+ * Return true if input (a string) contains at most one
+ * copy of a given letter. False otherwise.
  */
 function allUnique(input) {
 	var characterCounts = countCharacters(input);
- 
+
 	for(character in characterCounts){
 		if(characterCounts[character] !== 1){
 			return false;
@@ -164,9 +165,9 @@ function allUnique(input) {
 }
 
 /* *
- * Given a word and some letters, return true if word contains 
+ * Given a word and some letters, return true if word contains
  * only characters which appear in letters. This function does
- * assume that words and letters only contain 1 copy of any 
+ * assume that words and letters only contain 1 copy of any
  * character. IE allUniqe(word) && allUnique(letters) === true
  */
 function checkWord(word, letters) {
@@ -201,7 +202,7 @@ function printClarifiedSolution(node, nodesSearched, CONFIG) {
 function _printClarifiedSolution(node, compactDictionary) {
 	var firstWords = [];
 	var nodeItr = node;
-	
+
 	while(nodeItr.parent) {
 		var realWords = compactDictionary[nodeItr.word];
 		firstWords.push(realWords[0]);
@@ -211,8 +212,8 @@ function _printClarifiedSolution(node, compactDictionary) {
 	console.log(firstWords.join(", ") + ';');
 
 }
-/* * 
- * Print a chatty message with nodes in the order they are chosen, 
+/* *
+ * Print a chatty message with nodes in the order they are chosen,
  * as well as heuristic values for each node.
  */
 function _printClarifiedSolutionVerbose(node, nodesSearched, compactDictionary){
@@ -220,8 +221,8 @@ function _printClarifiedSolutionVerbose(node, nodesSearched, compactDictionary){
 	console.log(`At: ${nodesSearched}`);
 	console.log("---------------");
 	_printClarifiedSolution(node, compactDictionary);
-	console.log(`remaining letters:\n  ${node.letters.length}, ${node.letters}\n`);	
-	
+	console.log(`remaining letters:\n  ${node.letters.length}, ${node.letters}\n`);
+
 	var nodeItr = node;
 	while(nodeItr.parent) {
 		var realWords = compactDictionary[nodeItr.word];
