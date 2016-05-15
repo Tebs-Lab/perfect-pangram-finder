@@ -7,16 +7,16 @@ util.loadDict(bootstrapSearch);
 
 function bootstrapSearch(wordList) {
 	// create the set of winnable single word sets
-	COMPACT_DICT = util.createWinnableSets(wordList);
+	var COMPACT_DICT = util.createWinnableSets(wordList);
 	console.log("created winnable sets");
 
-	COMPACT_KEYS = Object.keys(COMPACT_DICT);
+	var COMPACT_KEYS = Object.keys(COMPACT_DICT);
 	console.log(COMPACT_KEYS.length, " Total initial dictionary entries");
 
-	LETTER_FREQUENCY = util.constructFreqHistogram(COMPACT_KEYS);
+	var LETTER_FREQUENCY = util.constructFreqHistogram(COMPACT_KEYS);
 	console.log("constructed letter frequency");
 
-	LETTER_SHARE = util.constructLetterShareHist(COMPACT_KEYS);
+	var LETTER_SHARE = util.constructLetterShareHist(COMPACT_KEYS);
 	console.log("constructed letter share");
 
 

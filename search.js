@@ -85,8 +85,8 @@ function constructAdjacentNodes(parent, openSet, closedSet) {
  */
 function pruneList(remainingLetters) {
 	var newList = [];
-	for(var i = 0; i < COMPACT_KEYS.length; i++) {
-		var word = COMPACT_KEYS[i];
+	for(var i = 0; i < CONFIG.COMPACT_KEYS.length; i++) {
+		var word = CONFIG.COMPACT_KEYS[i];
 
 		if(util.checkWord(word, remainingLetters)){
 			newList.push(word);

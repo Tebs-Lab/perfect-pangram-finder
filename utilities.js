@@ -36,12 +36,12 @@ function loadDict(callback) {
  */
 function createWinnableSets(wordList) {
 	var winners = {};
-	for(i in wordList) {
-		var word = wordList[i];
+	for(let i in wordList) {
+		let word = wordList[i];
 
 		if(!allUnique(word)) continue;
 
-		var sorted = word.split('').sort().join('');
+		let sorted = word.split('').sort().join('');
 		if(sorted.length === 1) continue;
 
 		if(winners[sorted] === undefined) {
@@ -64,21 +64,21 @@ function constructFreqHistogram(validWords){
 	var letterHistogram = {};
 	var totalSum = 0;
 	// Faster than branching?
-	for(var i = 0; i < ALL_LETTERS.length; i++){
+	for(let i = 0; i < ALL_LETTERS.length; i++){
 		letterHistogram[ALL_LETTERS[i]] = 0;
 	}
 
 	// Count ALL the possible remaining letters
-	for(i = 0; i < validWords.length; i++) {
-		var curWord = validWords[i];
-		for(var j = 0; j < curWord.length; j++){
+	for(let i = 0; i < validWords.length; i++) {
+		let curWord = validWords[i];
+		for(let j = 0; j < curWord.length; j++){
 			letterHistogram[curWord[j]] += 1;
 			totalSum += 1;
 		}
 	}
 
 	// Each letter has its percent commonness
-	for(var key in letterHistogram) {
+	for(let key in letterHistogram) {
 		letterHistogram[key] = letterHistogram[key] / totalSum;
 	}
 
@@ -95,22 +95,22 @@ function constructLetterShareHist(validWords) {
 	var letterShareHist = {};
 	var totalSum = 0;
 	// Faster than branching?
-	for(var i = 0; i < ALL_LETTERS.length; i++){
-		for(var j = i+1; j < ALL_LETTERS.length; j++){
-			for(var k = j+1; k < ALL_LETTERS.length; k++){
-				var joined = ALL_LETTERS[i] + ALL_LETTERS[j] + ALL_LETTERS[k];
+	for(let i = 0; i < ALL_LETTERS.length; i++){
+		for(let j = i+1; j < ALL_LETTERS.length; j++){
+			for(let k = j+1; k < ALL_LETTERS.length; k++){
+				let joined = ALL_LETTERS[i] + ALL_LETTERS[j] + ALL_LETTERS[k];
 				letterShareHist[joined] = 0;
 			}
 		}
 	}
 
 	// Construct the instances of 3 letters being shared
-	for(var wordIdx = 0; wordIdx < validWords.length; wordIdx++) {
-		var word = validWords[wordIdx];
-		for(i = 0; i < word.length; i++) {
-			for(j = i+1; j < word.length; j++){
-				for(k = j+1; k < word.length; k++){
-					joined = word[i] + word[j] + word[k];
+	for(let wordIdx = 0; wordIdx < validWords.length; wordIdx++) {
+		let word = validWords[wordIdx];
+		for(let i = 0; i < word.length; i++) {
+			for(let j = i+1; j < word.length; j++){
+				for(let k = j+1; k < word.length; k++){
+					let joined = word[i] + word[j] + word[k];
 					letterShareHist[joined] += 1;
 					totalSum += 1;
 				}
@@ -119,7 +119,7 @@ function constructLetterShareHist(validWords) {
 	}
 
 	// Each key has it's percent common-ness now.
-	for(key in letterShareHist){
+	for(let key in letterShareHist){
 		letterShareHist[key] = letterShareHist[key] / totalSum;
 	}
 
@@ -134,7 +134,7 @@ function constructLetterShareHist(validWords) {
 function countCharacters(input){
 	var characterCounts = {};
 
-	for(var i = 0; i < input.length; i++){
+	for(let i = 0; i < input.length; i++){
 		var c = input[i];
 
 		if(characterCounts[c] === undefined) {
@@ -155,7 +155,7 @@ function countCharacters(input){
 function allUnique(input) {
 	var characterCounts = countCharacters(input);
 
-	for(character in characterCounts){
+	for(let character in characterCounts){
 		if(characterCounts[character] !== 1){
 			return false;
 		}
@@ -179,13 +179,13 @@ function checkWord(word, letters) {
 
 	// Because our subset of letters is sure to only have uniqe letters
 	// we can just set counter to 1
-	for(var i = 0; i < letters.length; i++){
+	for(let i = 0; i < letters.length; i++){
 		var c = letters[i];
 		counter[c] = 1;
 	}
 
 	// If word has a letter that letters didn't have.
-	for(i = 0; i < word.length; i++) {
+	for(let i = 0; i < word.length; i++) {
 		if(counter[word[i]] !== 1) {
 			return false;
 		}

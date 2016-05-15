@@ -58,7 +58,7 @@ function getVowelRatio(word) {
 function getUncommonRate(word) {
 	// For letters in remaining letters, get the sum
 	var sum = 0;
-	for(i = 0; i < word.length; i++) {
+	for(let i = 0; i < word.length; i++) {
 		sum += LETTER_FREQUENCY[word[i]];
 	}
 
@@ -83,11 +83,11 @@ function getSharedLetterRate(word) {
 		return 0;
 	}
 
-	for(i = 0; i < word.length; i++) {
-		for(j = i+1; j < word.length; j++){
-			for(k = j+1; k < word.length; k++){
-				var joined = word[i] + word[j] + word[k];
-				var share = LETTER_SHARE[joined]
+	for(let i = 0; i < word.length; i++) {
+		for(let j = i+1; j < word.length; j++){
+			for(let k = j+1; k < word.length; k++){
+				let joined = word[i] + word[j] + word[k];
+				let share = LETTER_SHARE[joined]
 				sharedSum += share;
 				combosTried += 1;
 			}
