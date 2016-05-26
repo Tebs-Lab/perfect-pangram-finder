@@ -1,22 +1,22 @@
 "use strict"
-var search = require('./search');
-var util = require('./utilities');
+const search = require('./lib/search');
+const util = require('./lib/utilities');
 
-// Main entry
+// Main entry - load the dictonary then bootstrap the search.
 util.loadDict(bootstrapSearch);
 
 function bootstrapSearch(wordList) {
 	// create the set of winnable single word sets
-	var COMPACT_DICT = util.createWinnableSets(wordList);
+	const COMPACT_DICT = util.createCompactDictionary(wordList);
 	console.log("created winnable sets");
 
-	var COMPACT_KEYS = Object.keys(COMPACT_DICT);
+	const COMPACT_KEYS = Object.keys(COMPACT_DICT);
 	console.log(COMPACT_KEYS.length, " Total initial dictionary entries");
 
-	var LETTER_FREQUENCY = util.constructFreqHistogram(COMPACT_KEYS);
+	const LETTER_FREQUENCY = util.constructFreqHistogram(COMPACT_KEYS);
 	console.log("constructed letter frequency");
 
-	var LETTER_SHARE = util.constructLetterShareHist(COMPACT_KEYS);
+	const LETTER_SHARE = util.constructLetterShareHist(COMPACT_KEYS);
 	console.log("constructed letter share");
 
 
@@ -38,7 +38,7 @@ function bootstrapSearch(wordList) {
 		VERBOSE: process.argv.indexOf('v') !== -1,
 
 		// Word Choice Control
-		BANNED_WORDSET: [],
+		KNOWN_SOLUTIONS: [],
 		PREFERENCED_WORDS: []
 	};
 	console.log(CONFIG.MATCH_LENGTH, CONFIG.VERBOSE)
