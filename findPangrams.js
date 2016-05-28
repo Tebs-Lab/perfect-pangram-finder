@@ -41,6 +41,33 @@ function bootstrapSearch(wordList) {
 		KNOWN_SOLUTIONS: [],
 		PREFERENCED_WORDS: []
 	};
-	console.log(CONFIG.MATCH_LENGTH, CONFIG.VERBOSE)
-	var solution = search.search(COMPACT_KEYS, CONFIG);
+	if(process.argv.indexOf('--benchmark') !== -1) {
+		CONFIG.reporter = benchReporter;
+	}
+
+	absoluteStart = Date.now();
+	search.search(COMPACT_KEYS, CONFIG);
+}
+
+var absoluteStart;
+var snapshotEnd;
+var prevExploredCount;
+function benchReporter(explored, frontier, CONFIG) {
+	// Report every some odd nodes
+	let exploredThisTime = explored.size - prevExploredCount;
+	if(exploredThisTime < 1000) {
+		return;
+	}
+	prevExploredCount = explored.size;
+
+	snapshotEnd = Date.now();
+	let secondsElappsed = (snapshotEnd - absoluteStart) / 1000;
+
+	console.log("============");
+	console.log(`Seconds Elappsed:            ${secondsElappsed}`);
+	console.log(`Nodes explored per solution: ${explored.size / CONFIG.KNOWN_SOLUTIONS.length}`);
+	console.log(`Explored per second:         ${explored.size / secondsElappsed}`);
+	console.log(`Explored total:              ${explored.size}`);
+	console.log(`Solutions total:             ${CONFIG.KNOWN_SOLUTIONS.length}`);
+	console.log(`Current frontier size:       ${frontier.size()}`);
 }
