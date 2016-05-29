@@ -38,6 +38,7 @@ function bootstrapSearch(wordList) {
 		VERBOSE: process.argv.indexOf('v') !== -1,
 
 		// Word Choice Control
+		EXPLORATION_RATE: .05,
 		KNOWN_SOLUTIONS: [],
 		PREFERENCED_WORDS: []
 	};
@@ -70,4 +71,25 @@ function benchReporter(explored, frontier, CONFIG) {
 	console.log(`Explored total:              ${explored.size}`);
 	console.log(`Solutions total:             ${CONFIG.KNOWN_SOLUTIONS.length}`);
 	console.log(`Current frontier size:       ${frontier.size()}`);
+
+	// Dump frontier stats
+	if(CONFIG.VERBOSE) {
+		console.log('---- frontier decile avgs ----');
+		let frontElms = frontier._elements;
+		let decileSize = Math.floor(frontElms.length / 10);
+		let currentDecileUtil = 0;
+		let currentDecileLen = 0;
+		// (i = 1 to ignore single worst for mod convinence)
+		for(let i = 1; i < frontElms.length; i++) {
+			let node = frontElms[i];
+			currentDecileLen += node.letters.length;
+			currentDecileUtil += node.utility;
+
+			if(i % decileSize === 0) {
+				console.log(`L: ${currentDecileLen / decileSize}, U: ${currentDecileUtil / decileSize}`);
+				currentDecileUtil = 0;
+				currentDecileLen = 0;
+			}
+		}
+	}
 }
