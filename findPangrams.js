@@ -38,7 +38,7 @@ function bootstrapSearch(wordList) {
     VERBOSE: process.argv.indexOf('v') !== -1,
 
     // Word Choice Control
-    EXPLORATION_RATE: 0,
+    EXPLORATION_RATE: .3,
   };
   if(process.argv.indexOf('--benchmark') !== -1) {
     CONFIG.reporter = benchReporter;
