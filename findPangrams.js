@@ -51,7 +51,7 @@ function bootstrapSearch(wordList) {
 var absoluteStart;
 var snapshotEnd;
 var prevExploredCount;
-function benchReporter(explored, frontier, rootNode, CONFIG) {
+function benchReporter(explored, frontier, rootNode, CONFIG, frontierLookup) {
   // Report every some odd nodes
   let curExploredSize = Object.keys(explored).length;
   let exploredThisTime = curExploredSize - prevExploredCount;
@@ -72,9 +72,29 @@ function benchReporter(explored, frontier, rootNode, CONFIG) {
   console.log(`Current frontier size:       ${frontier.size()}`);
 
   // Dump frontier stats
-  if(CONFIG.VERBOSE) {
+  // frontier is NOT exactly sorted... but the item at [0] is the best one.
+  // This dump is expensive and will slow computation significantly.
+  if(CONFIG.VERBOSE && frontier.size() > 10) {
+
+    // SPENDY, copy and sort.
+    let frontElms = frontier._elements.slice();
+    frontElms.sort(function (a, b) {
+      return a.utility - b.utility;
+    });
+
+    console.log('\n-- top 10 --');
+    for(let i = 1; i < 11; i++) {
+      let topNode = frontElms[frontElms.length - i];
+      console.log(`${topNode.letters}, ${topNode.utility}`);
+    }
+
+    console.log('\n-- bottom 10 --');
+    for(let i = 0; i < 10; i ++) {
+      let topNode = frontElms[i];
+      console.log(`${topNode.letters}, ${topNode.utility}`);
+    }
+
     console.log('---- frontier decile avgs ----');
-    let frontElms = frontier._elements;
     let decileSize = Math.floor(frontElms.length / 10);
     let currentDecileUtil = 0;
     let currentDecileLen = 0;
