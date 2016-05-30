@@ -38,7 +38,7 @@ function bootstrapSearch(wordList) {
 		VERBOSE: process.argv.indexOf('v') !== -1,
 
 		// Word Choice Control
-		EXPLORATION_RATE: .05,
+		EXPLORATION_RATE: 0,
 		KNOWN_SOLUTIONS: [],
 		PREFERENCED_WORDS: []
 	};
@@ -55,20 +55,21 @@ var snapshotEnd;
 var prevExploredCount;
 function benchReporter(explored, frontier, CONFIG) {
 	// Report every some odd nodes
-	let exploredThisTime = explored.size - prevExploredCount;
+	let curExploredSize = Object.keys(explored).length;
+	let exploredThisTime = curExploredSize - prevExploredCount;
 	if(exploredThisTime < 1000) {
 		return;
 	}
-	prevExploredCount = explored.size;
+	prevExploredCount = curExploredSize;
 
 	snapshotEnd = Date.now();
 	let secondsElappsed = (snapshotEnd - absoluteStart) / 1000;
 
 	console.log("============");
 	console.log(`Seconds Elappsed:            ${secondsElappsed}`);
-	console.log(`Nodes explored per solution: ${explored.size / CONFIG.KNOWN_SOLUTIONS.length}`);
-	console.log(`Explored per second:         ${explored.size / secondsElappsed}`);
-	console.log(`Explored total:              ${explored.size}`);
+	console.log(`Nodes explored per solution: ${curExploredSize / CONFIG.KNOWN_SOLUTIONS.length}`);
+	console.log(`Explored per second:         ${curExploredSize / secondsElappsed}`);
+	console.log(`Explored total:              ${curExploredSize}`);
 	console.log(`Solutions total:             ${CONFIG.KNOWN_SOLUTIONS.length}`);
 	console.log(`Current frontier size:       ${frontier.size()}`);
 
