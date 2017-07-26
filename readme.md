@@ -69,7 +69,7 @@ Each layer contains all the nodes "n letters away" from the solution. For exampl
 
 Each time I build a layer, I rely on the existence of layers higher up being the complete list of "letter sets that lead to a solution" of a particular length.
 
-## Tradeoffs
+# Tradeoffs
 
 The weakness of the top down solution (currently) is that while it explores significantly fewer dead-end nodes (0 of them) it must generate the entire relevant state space before it can find ANY perfect pangrams. This means it cannot find anything in larger spaces (longer alphabet, more words in the dictionary).
 
