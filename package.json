@@ -4,11 +4,14 @@
   "description": "A program meant to find perfect pangrams",
   "main": "findPangrams.js",
   "dependencies": {
+    "chai": "^4.1.0",
+    "mocha": "^3.4.2",
     "priorityqueuejs": "^1.0.0"
   },
   "devDependencies": {},
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "./node_modules/mocha/bin/mocha test/**",
+    "mocha": "./node_modules/mocha/bin/mocha "
   },
   "author": "Tyler Bettilyon",
   "license": "MIT"
