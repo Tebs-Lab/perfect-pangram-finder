@@ -28,15 +28,15 @@ const utils = require('./lib/pangram-string-utilities');
 */
 function findAllPangrams(words) {
   // const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const alphabet = 'ABCDEFGHILMNOSU';
+  const alphabet = 'ABCDEFGHILMNO';
+
+  let graph = new PangramTopDownDag(alphabet, words);
+  graph.generateTreeToDepth();
+  console.log(graph.getKnownPangrams().size);
   //
-  // let graph = new PangramTopDownDag(alphabet, words);
-  // graph.generateTreeToDepth();
-  // graph.getKnownPangrams();
-  //
-  // let graph2 = new PangramHeuristicSearch(alphabet, words);
-  // graph2.search();
-  // graph.getKnownPangrams();
+  let graph2 = new PangramHeuristicSearch(alphabet, words);
+  graph2.search();
+  graph.getKnownPangrams();
 }
 
 utils.loadDict(process.cwd() + '/scrabble-dictionary.csv', findAllPangrams);
