@@ -20,7 +20,7 @@ npm test # for the tests (which are not exhaustive ... )
 node sampleRunner.js # Examine that code to see how the classes are being used
 ```
 
-The top down solution should complete, and it will print how many perfect pangrams it found before terminating. The heuristic solution currently is too slow to finish on the same input, so it will print to the screen every time it finds 1000 new pangrams.
+The sample runner doesn't use all 26 letters, because it takes far too long to complete an exhaustive search. Instead it will print that with an alphabet of `ABCDED` you can make the perfect pangram `CAB FED`.
 
 
 # Points of Interest
